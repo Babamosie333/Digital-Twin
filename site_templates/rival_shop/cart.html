@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cart — {{ shop.name }}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-shop-id="{{ shop._id }}" data-backend-url="{{ backend_url }}">
+<header class="site-header">
+  <div class="wrap header-row">
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 5h16M2 10h16M2 15h16"/></svg></button>
+    <a href="index.html" class="wordmark">{{ shop.name }}</a>
+    <nav class="main-nav"><a href="shop.html">All Products</a></nav>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><span class="knob"></span></button>
+      <a href="#" class="icon-btn" id="cartOpenBtn" aria-label="Open cart"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M1 1h4l2.7 13.6a2 2 0 0 0 2 1.6h9.1a2 2 0 0 0 2-1.6L23 6H6"/></svg><span class="cart-count" style="display:none;">0</span></a>
+    </div>
+  </div>
+</header>
+<main id="main">
+  <div class="wrap">
+    <h1 style="margin:32px 0 24px;">Your Cart</h1>
+    <div id="cartContent"></div>
+  </div>
+</main>
+<footer class="site-footer"><div class="wrap"><div class="footer-bottom" style="border-top:2px solid var(--ink);"><span>© 2026 {{ shop.name }}</span><span>Powered by Digital Twin Connector</span></div></div></footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  window.SHOP_INFO = { id: "{{ shop._id }}" };
+  window.BACKEND_URL = "{{ backend_url }}";
+
+  function renderCartPage(){
+    const cart = getCart();
+    const el = document.getElementById("cartContent");
+    if(cart.length === 0){
+      el.innerHTML = `<div style="text-align:center; padding:60px 0;"><p style="color:var(--ink-soft); margin-bottom:16px;">Your cart is empty.</p><a href="shop.html" class="btn btn-accent">Browse products</a></div>`;
+      return;
+    }
+    const lines = cart.map(l => {
+      const p = getProduct(l.id);
+      if(!p) return "";
+      return `
+        <div class="cart-line" style="display:grid; grid-template-columns:80px 1fr auto auto; gap:16px; align-items:center; padding:16px 0; border-bottom:1px solid var(--line);">
+          <div style="width:80px;height:80px;overflow:hidden;border:1px solid var(--line);">${productMedia(p)}</div>
+          <div><a href="product.html?id=${p.id}" style="font-weight:600;">${p.title}</a><div style="color:var(--ink-soft); font-size:0.85rem;">${formatPrice(p.price)}</div></div>
+          <div style="display:flex; align-items:center; border:2px solid var(--ink);">
+            <button data-id="${p.id}" class="qty-dec" style="width:32px;height:32px;background:none;border:none;cursor:pointer;">−</button>
+            <span style="width:30px; text-align:center;">${l.qty}</span>
+            <button data-id="${p.id}" class="qty-inc" style="width:32px;height:32px;background:none;border:none;cursor:pointer;">+</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <strong>${formatPrice(p.price * l.qty)}</strong>
+            <button data-id="${p.id}" class="line-remove" aria-label="Remove" style="background:none;border:none;cursor:pointer;color:var(--ink-soft);">✕</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    el.innerHTML = `
+      <div style="display:grid; grid-template-columns:2fr 1fr; gap:40px; align-items:start;">
+        <div>${lines}</div>
+        <div style="border:2px solid var(--ink); padding:24px;">
+          <div style="display:flex; justify-content:space-between; font-size:1.1rem; font-weight:700; margin-bottom:16px;">
+            <span>Total</span><span>${formatPrice(cartSubtotal())}</span>
+          </div>
+          <p style="font-size:0.8rem; color:var(--ink-soft); margin-bottom:16px;">Delivery arranged directly with the shop after your order is confirmed via WhatsApp.</p>
+          <a href="checkout.html" class="btn btn-accent btn-block">Checkout</a>
+        </div>
+      </div>
+    `;
+
+    el.querySelectorAll(".qty-inc").forEach(b => b.addEventListener("click", () => {
+      const l = getCart().find(x => x.id === b.dataset.id);
+      setCartLineQty(b.dataset.id, (l ? l.qty : 0) + 1);
+      renderCartPage();
+    }));
+    el.querySelectorAll(".qty-dec").forEach(b => b.addEventListener("click", () => {
+      const l = getCart().find(x => x.id === b.dataset.id);
+      setCartLineQty(b.dataset.id, (l ? l.qty : 1) - 1);
+      renderCartPage();
+    }));
+    el.querySelectorAll(".line-remove").forEach(b => b.addEventListener("click", () => {
+      removeCartLine(b.dataset.id);
+      renderCartPage();
+    }));
+  }
+
+  renderCartPage();
+</script>
+</body>
+</html>

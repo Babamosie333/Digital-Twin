@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Digital Twin</title>
+<style>
+  body[data-theme="dark"]{
+    --bg-1:#1c1e26; --bg-2:#242730;
+    --glass:rgba(255,255,255,0.055); --glass-strong:rgba(255,255,255,0.09); --glass-border:rgba(255,255,255,0.10);
+    --text-hi:#f2f3f5; --text-mid:#a7abb6; --text-low:#71757f;
+  }
+  body[data-theme="light"]{
+    --bg-1:#fbfbfc; --bg-2:#f2f3f5;
+    --glass:rgba(20,22,30,0.035); --glass-strong:rgba(20,22,30,0.06); --glass-border:rgba(20,22,30,0.09);
+    --text-hi:#1b1d23; --text-mid:#5c6069; --text-low:#8a8e97;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif;
+    background:var(--bg-1); color:var(--text-hi); min-height:100vh; display:flex; flex-direction:column;
+    transition:background 250ms ease, color 250ms ease;
+  }
+
+  .titlebar{
+    flex:0 0 auto; height:44px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; background:linear-gradient(var(--bg-2), var(--bg-1));
+    border-bottom:1px solid var(--glass-border); position:sticky; top:0; z-index:100; backdrop-filter:blur(20px);
+  }
+  .traffic-lights{display:flex; gap:8px;}
+  .dot{width:12px; height:12px; border-radius:50%;}
+  .dot.red{background:#ff453a;} .dot.yellow{background:#ffb224;} .dot.green{background:#12a594;}
+  .app-name{font-family:'SF Mono','JetBrains Mono', ui-monospace, monospace; font-size:12.5px; color:var(--text-low);}
+  .theme-toggle{display:flex; background:var(--glass); border:1px solid var(--glass-border); border-radius:7px; overflow:hidden; font-size:11px;}
+  .theme-toggle button{border:none; background:transparent; color:var(--text-mid); padding:4px 10px; cursor:pointer; font-family:inherit; transition:background 150ms ease;}
+  .theme-toggle button.active{background:#4f5fe0; color:white;}
+
+  .layout{flex:1; display:flex; min-height:0;}
+  .sidebar{
+    width:220px; flex:0 0 auto; background:var(--bg-2); border-right:1px solid var(--glass-border);
+    padding:20px 12px; display:flex; flex-direction:column; gap:4px;
+  }
+  .sidebar .brand{font-weight:700; font-size:15px; letter-spacing:-0.02em; padding:0 10px 20px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:7px; cursor:pointer;
+    color:var(--text-mid); font-size:13.5px; font-weight:600; transition:background 150ms ease, color 150ms ease;
+  }
+  .nav-item:hover{background:var(--glass);}
+  .nav-item.active{background:#4f5fe0; color:white;}
+  .nav-item .icon{width:16px; text-align:center;}
+
+  .main{flex:1; overflow-y:auto; padding:32px; max-width:1100px; margin:0 auto; width:100%;}
+  .page{display:none;}
+  .page.active{display:block; animation:fadeIn 250ms ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  h1.page-title{font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-bottom:6px;}
+  p.page-sub{color:var(--text-mid); font-size:14px; margin-bottom:28px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:32px;}
+  .stat-card{background:var(--glass); border:1px solid var(--glass-border); border-radius:16px; padding:20px; backdrop-filter:blur(20px); transition:transform 200ms ease, border 200ms ease;}
+  .stat-card:hover{transform:translateY(-3px); border-color:#4f5fe0;}
+  .stat-card .label{font-size:12px; color:var(--text-mid); margin-bottom:8px;}
+  .stat-card .value{font-size:26px; font-weight:700; letter-spacing:-0.02em;}
+  .stat-card .delta{font-size:11px; color:#12a594; margin-top:4px;}
+
+  .panel{background:var(--bg-2); border:1px solid var(--glass-border); border-radius:16px; overflow:hidden; margin-bottom:24px;}
+  .panel-header{padding:16px 20px; border-bottom:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;}
+  .panel-header h3{font-size:15px; font-weight:700;}
+  .panel-body{padding:20px;}
+
+  .form-row{margin-bottom:16px;}
+  .form-row label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
+  .form-row input, .form-row select{
+    width:100%; padding:10px 12px; border-radius:7px; border:1px solid var(--glass-border);
+    background:var(--glass); color:var(--text-hi); font-family:inherit; font-size:14px;
+  }
+  .form-row input:focus, .form-row select:focus{outline:none; border-color:#4f5fe0;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+
+  .btn{padding:10px 18px; border-radius:7px; font-weight:600; font-size:13.5px; cursor:pointer; border:1px solid var(--glass-border); transition:transform 150ms ease, background 150ms ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-glass{background:var(--glass); color:var(--text-hi);}
+  .btn-glass:hover{background:var(--glass-strong);}
+  .btn-primary{background:#4f5fe0; color:white; border:none;}
+  .btn-primary:hover{background:#3e4dc9; box-shadow:0 4px 16px rgba(79,95,224,0.35);}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{text-align:left; color:var(--text-mid); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--glass-border); font-size:12px; text-transform:uppercase; letter-spacing:0.03em;}
+  td{padding:12px; border-bottom:1px solid var(--glass-border);}
+  tr:last-child td{border-bottom:none;}
+  .prod-thumb{width:36px; height:36px; border-radius:7px; object-fit:cover; background:var(--glass); vertical-align:middle; margin-right:10px;}
+  .prod-thumb-fallback{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:7px; background:var(--glass); margin-right:10px; font-size:16px; vertical-align:middle;}
+  .row-flex{display:flex; align-items:center;}
+  .price-tag{color:#12a594; font-weight:700;}
+  .btn-icon{background:var(--glass); border:1px solid var(--glass-border); border-radius:7px; padding:5px 9px; cursor:pointer; font-size:12px; color:var(--text-mid);}
+  .btn-icon:hover{background:var(--glass-strong); color:var(--text-hi);}
+
+  .theme-options{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px;}
+  .theme-option{border:2px solid var(--glass-border); border-radius:14px; padding:14px; cursor:pointer; transition:border 150ms ease, transform 150ms ease;}
+  .theme-option:hover{transform:translateY(-2px);}
+  .theme-option.selected{border-color:#4f5fe0;}
+  .theme-swatch{height:130px; border-radius:9px; margin-bottom:10px; overflow:hidden; position:relative; border:1px solid var(--glass-border);}
+  .theme-preview-video{width:100%; height:100%; object-fit:cover;}
+  .mockup-scroll{position:absolute; top:0; left:0; width:100%; animation:mockupScroll 6s ease-in-out infinite;}
+  @keyframes mockupScroll{0%,15%{transform:translateY(0);} 45%,60%{transform:translateY(-45%);} 85%,100%{transform:translateY(0);}}
+  .mockup-bar{height:14px; display:flex; align-items:center; gap:3px; padding:0 8px;}
+  .mockup-bar span{width:5px; height:5px; border-radius:50%;}
+  .mockup-block{margin:6px 8px; border-radius:4px;}
+  .swatch-rival .mockup-scroll{background:#F4F3EE;}
+  .swatch-rival .mockup-bar{background:#F4F3EE;} .swatch-rival .mockup-bar span{background:#2A46E8;}
+  .swatch-rival .mockup-block{background:linear-gradient(135deg,#2A46E8,#0E0F12);}
+  .swatch-nami .mockup-scroll{background:#FAF9F5;}
+  .swatch-nami .mockup-bar{background:#FAF9F5;} .swatch-nami .mockup-bar span{background:#3A5A72;}
+  .swatch-nami .mockup-block{background:linear-gradient(135deg,#3A5A72,#1E1D1B);}
+  .swatch-fernweg .mockup-scroll{background:#EFE9DA;}
+  .swatch-fernweg .mockup-bar{background:#EFE9DA;} .swatch-fernweg .mockup-bar span{background:#8A3B2B;}
+  .swatch-fernweg .mockup-block{background:linear-gradient(135deg,#8A3B2B,#141C17);}
+  .theme-option .name{font-size:13px; font-weight:700;}
+  .theme-option .desc{font-size:11px; color:var(--text-mid); margin-top:2px;}
+
+  .qr-box{display:flex; align-items:center; gap:24px; flex-wrap:wrap;}
+  #qrActions.visible, #waActions.visible{display:flex !important;}
+  .qr-placeholder{width:140px; height:140px; background:var(--glass); border:1px dashed var(--glass-border); border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--text-low); font-size:12px; text-align:center;}
+  .link-box{background:var(--glass); border:1px solid var(--glass-border); border-radius:7px; padding:10px 12px; font-family:'SF Mono',monospace; font-size:12.5px; color:var(--text-mid); word-break:break-all; white-space:pre-wrap;}
+
+  .empty-state{text-align:center; padding:40px 20px; color:var(--text-low); font-size:13px;}
+
+  @media (max-width:768px){
+    .layout{flex-direction:column;}
+    .sidebar{width:100%; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--glass-border); padding:10px;}
+    .sidebar .brand{display:none;}
+    .form-grid{grid-template-columns:1fr;}
+    .main{padding:20px;}
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+  <div class="titlebar">
+    <div class="traffic-lights"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+    <div class="app-name">digital-twin — dashboard</div>
+    <div class="theme-toggle">
+      <button id="darkBtn" class="active" onclick="setTheme('dark')">Dark</button>
+      <button id="lightBtn" onclick="setTheme('light')">Light</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="brand">Digital Twin</div>
+      <div class="nav-item active" data-page="overview" onclick="showPage('overview', this)"><span class="icon">📊</span> Overview</div>
+      <div class="nav-item" data-page="shop" onclick="showPage('shop', this)"><span class="icon">🏬</span> Shop Info</div>
+      <div class="nav-item" data-page="products" onclick="showPage('products', this)"><span class="icon">📦</span> Products</div>
+      <div class="nav-item" data-page="theme" onclick="showPage('theme', this)"><span class="icon">🎨</span> Theme</div>
+      <div class="nav-item" data-page="share" onclick="showPage('share', this)"><span class="icon">🔗</span> Share & QR</div>
+      <div class="nav-item" data-page="orders" onclick="showPage('orders', this)"><span class="icon">📥</span> Order Inbox</div>
+    </div>
+
+    <div class="main">
+
+      <div class="page active" id="page-overview">
+        <h1 class="page-title">Welcome back{{ ', ' + shop.name if shop and shop.name else '' }}</h1>
+        <p class="page-sub">Here's how your website is performing.</p>
+
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">Site Views</div><div class="value">{{ view_count }}</div></div>
+          <div class="stat-card"><div class="label">QR Scans</div><div class="value">{{ scan_count }}</div></div>
+          <div class="stat-card"><div class="label">Products Listed</div><div class="value">{{ products|length if products else 0 }}</div></div>
+          <div class="stat-card"><div class="label">Site Status</div><div class="value" style="font-size:16px;">{{ '🟢 Live' if site_status == 'Live' else '⚪ ' + site_status }}</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Your Live Site</h3></div>
+          <div class="panel-body">
+            <div class="link-box" id="liveSiteUrl">{{ site_live_url if site_live_url else 'https://' + (shop.subdomain if shop and shop.subdomain else 'your-shop') + '.yourdomain.dpdns.org (not generated yet)' }}</div>
+            <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="regenerateBtn" onclick="regenerateSite()">Regenerate Site</button>
+              <button class="btn btn-glass" onclick="previewLiveSite()">Preview Live Site</button>
+              <button class="btn btn-glass" onclick="copyLiveSiteLink()">Copy Link</button>
+              <button class="btn btn-glass" onclick="shareLiveSiteLink()">Share</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-shop">
+        <h1 class="page-title">Shop Info</h1>
+        <p class="page-sub">This information appears on your generated website.</p>
+
+        <div class="panel">
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-row"><label>Business Name</label><input type="text" id="shopName" value="{{ shop.name if shop and shop.name else '' }}"></div>
+              <div class="form-row"><label>Category</label><input type="text" id="shopCategory" value="{{ shop.category if shop else '' }}"></div>
+              <div class="form-row"><label>Working Hours (summary)</label><input type="text" id="shopHours" value="{{ shop.hours if shop else '' }}"></div>
+              <div class="form-row"><label>Contact Number</label><input type="text" id="shopContact" value="{{ shop.contact if shop else '' }}"></div>
+              <div class="form-row"><label>WhatsApp Number</label><input type="text" id="shopWhatsapp" value="{{ shop.whatsapp if shop else '' }}"></div>
+              <div class="form-row"><label>Subdomain</label><input type="text" id="shopSubdomain" value="{{ shop.subdomain if shop and shop.subdomain else '' }}"></div>
+              <div class="form-row"><label>Custom Domain (optional)</label><input type="text" id="shopCustomDomain" placeholder="www.yourshop.com" value="{{ shop.custom_domain if shop and shop.custom_domain else '' }}"></div>
+              <div class="form-row"><label>Site Language</label>
+                <select id="shopLanguage">
+                  <option value="en" {{ 'selected' if shop and shop.language == 'en' else '' }}>English</option>
+                  <option value="hi" {{ 'selected' if shop and shop.language == 'hi' else '' }}>हिन्दी (Hindi)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveShopInfo()">Save Changes</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Discount / Offer Banner</h3></div>
+          <div class="panel-body">
+            <div class="form-row" style="margin-bottom:12px;">
+              <input type="text" id="discountBanner" placeholder="e.g. 20% off this week!" value="{{ shop.discount_banner if shop and shop.discount_banner else '' }}">
+            </div>
+            <p style="font-size:12px; color:var(--text-mid); margin-bottom:12px;">Shown as a banner at the top of your live site. Leave blank to hide it.</p>
+            <button class="btn btn-glass" onclick="saveDiscountBanner()">Save Banner</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Custom Domain Setup</h3></div>
+          <div class="panel-body">
+            <p style="font-size:13px; color:var(--text-mid); line-height:1.7;">
+              Already own a domain? Point it at your generated site:<br>
+              1. In your domain registrar's DNS settings, add a <strong>CNAME record</strong> pointing to <code>{{ shop.subdomain if shop else 'your-shop' }}.digital-twin-sites.pages.dev</code><br>
+              2. In Cloudflare Pages → your project → Custom Domains, add the domain above and follow the verification steps.<br>
+              3. Save it above in "Custom Domain" so it's shown on your dashboard.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Hours by Day</h3></div>
+          <div class="panel-body">
+            <div id="hoursByDayGrid"></div>
+            <button class="btn btn-glass" style="margin-top:12px;" onclick="saveHoursByDay()">Save Hours</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-orders">
+        <h1 class="page-title">Order Inbox</h1>
+        <p class="page-sub">Orders customers submit from your live site land here.</p>
+        <div class="panel">
+          <div class="panel-header"><h3>Recent Orders</h3><button class="btn btn-glass" onclick="loadOrders()">Refresh</button></div>
+          <div class="panel-body" style="padding:0;">
+            <table id="ordersTable">
+              <thead><tr><th>Customer</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+              <tbody id="ordersTableBody">
+                <tr><td colspan="4" class="empty-state">Click Refresh, or open this tab, to load orders.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-products">
+        <h1 class="page-title">Products & Catalog</h1>
+        <p class="page-sub">Manage what shows up in your website's product grid.</p>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Add New Product</h3></div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-row"><label>Product Name</label><input type="text" id="newProdName" placeholder="e.g. Basmati Rice 5kg"></div>
+              <div class="form-row"><label>Price (₹)</label><input type="text" id="newProdPrice" placeholder="e.g. 450"></div>
+              <div class="form-row"><label>Category</label><input type="text" id="newProdCategory" placeholder="e.g. Grocery"></div>
+              <div class="form-row"><label>Photos (you can select multiple)</label><input type="file" id="newProdPhoto" accept="image/*" multiple></div>
+            </div>
+            <div class="form-row">
+              <label>Description <button type="button" class="btn-icon" onclick="generateAiDescription()" style="margin-left:8px;">✨ AI Suggest</button></label>
+              <textarea id="newProdDescription" rows="2" placeholder="Optional — click AI Suggest to auto-generate from your photo + name, or write your own" style="width:100%; padding:10px 12px; border-radius:7px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi); font-family:inherit; font-size:14px;"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>Current Catalog</h3></div>
+          <div class="panel-body" style="padding:0;">
+            <table id="productTable">
+              <thead><tr><th>Product</th><th>Price</th><th>Category</th><th></th></tr></thead>
+              <tbody id="productTableBody">
+                {% for p in products %}
+                <tr data-product-id="{{ p._id }}">
+                  <td class="row-flex">
+                    {% if p.photo_url %}
+                      <img class="prod-thumb" src="{{ p.photo_url }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                      <span class="prod-thumb-fallback" style="display:none;">📦</span>
+                    {% else %}
+                      <span class="prod-thumb-fallback">📦</span>
+                    {% endif %}
+                    <span class="prod-name">{{ p.name }}</span>
+                  </td>
+                  <td class="price-tag prod-price">₹{{ p.price }}</td>
+                  <td class="prod-category">{{ p.category }}</td>
+                  <td>
+                    <button class="btn-icon" onclick="editProduct(this)">Edit</button>
+                    <button class="btn-icon" onclick="deleteProduct(this)">Delete</button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty-state">No products yet — add your first one above.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-theme">
+        <h1 class="page-title">Website Theme</h1>
+        <p class="page-sub">Choose how your generated website looks.</p>
+
+        <div class="theme-options">
+          <div class="theme-option selected" onclick="selectTheme(this, 'rival_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/rival_shop.mp4') }}" type="video/mp4">
+              </video>
+            </div>
+            <div class="name">Rival</div>
+            <div class="desc">Bold indigo, full storefront with cart & WhatsApp checkout</div>
+          </div>
+          <div class="theme-option" onclick="selectTheme(this, 'nami_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/nami_shop.mp4') }}" type="video/mp4">
+              </video>
+            </div>
+            <div class="name">Nami</div>
+            <div class="desc">Calm slate blue, minimal paper-goods aesthetic</div>
+          </div>
+          <div class="theme-option" onclick="selectTheme(this, 'fernweg_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/fernweg_shop.mp4') }}" type="video/mp4">
+              </video>
+            </div>
+            <div class="name">Fernweg</div>
+            <div class="desc">Earthy rust + cream, warm travel-goods feel</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top:20px;" onclick="applyTheme()">Apply Theme</button>
+        <p style="font-size:12px; color:var(--text-mid); margin-top:10px;">This saves your theme choice. Go to <strong>Overview</strong> and click "Regenerate Site" to publish it live.</p>
+      </div>
+
+      <div class="page" id="page-share">
+        <h1 class="page-title">Share & QR Code</h1>
+        <p class="page-sub">Get your customers to your site — online and offline.</p>
+
+        <div class="panel">
+          <div class="panel-header"><h3>QR Code</h3></div>
+          <div class="panel-body qr-box">
+            <div class="qr-placeholder" id="qrPreview">QR code generates here</div>
+            <div>
+              <p style="font-size:13px; color:var(--text-mid); margin-bottom:12px; max-width:280px;">Print this on your shop counter, menu card, or packaging so customers can scan straight to your site.</p>
+              <button class="btn btn-primary" onclick="generateQR()">Generate QR Code</button>
+              <div id="qrActions" style="display:none; margin-top:10px; gap:8px;">
+                <button class="btn btn-glass" onclick="downloadQR()">Download</button>
+                <button class="btn btn-glass" onclick="shareQR()">Share</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>WhatsApp Catalog</h3></div>
+          <div class="panel-body">
+            <p style="font-size:13px; color:var(--text-mid); margin-bottom:12px;">Share a formatted product list directly on WhatsApp.</p>
+            <button class="btn btn-primary" onclick="generateWhatsAppCatalog()">Generate WhatsApp Message</button>
+            <div id="waActions" style="display:none; margin-top:10px; gap:8px;">
+              <button class="btn btn-glass" onclick="copyWhatsAppMessage()">Copy</button>
+              <button class="btn btn-glass" onclick="shareWhatsAppMessage()">Share</button>
+            </div>
+            <div id="waPreview" style="margin-top:14px;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  function setTheme(t){
+    document.body.setAttribute('data-theme', t);
+    document.getElementById('darkBtn').classList.toggle('active', t==='dark');
+    document.getElementById('lightBtn').classList.toggle('active', t==='light');
+  }
+
+  function showPage(pageId, el){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + pageId).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function selectTheme(el, themeKey){
+    document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.dataset.theme = themeKey;
+  }
+
+  async function saveShopInfo(){
+    const payload = {
+      name: document.getElementById('shopName').value,
+      category: document.getElementById('shopCategory').value,
+      hours: document.getElementById('shopHours').value,
+      contact: document.getElementById('shopContact').value,
+      whatsapp: document.getElementById('shopWhatsapp').value,
+      subdomain: document.getElementById('shopSubdomain').value,
+      custom_domain: document.getElementById('shopCustomDomain').value,
+      language: document.getElementById('shopLanguage').value
+    };
+    try {
+      const res = await fetch('/api/shop', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      alert(res.ok ? 'Saved!' : 'Please sign in first.');
+    } catch(e){ alert('Backend not reachable — is the server running?'); }
+  }
+
+  async function saveDiscountBanner(){
+    const value = document.getElementById('discountBanner').value;
+    try {
+      const res = await fetch('/api/shop', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({discount_banner: value})});
+      alert(res.ok ? 'Banner saved! Regenerate your site to publish it.' : 'Could not save.');
+    } catch(e){ alert('Backend not reachable.'); }
+  }
+
+  const DAYS = [['mon','Monday'],['tue','Tuesday'],['wed','Wednesday'],['thu','Thursday'],['fri','Friday'],['sat','Saturday'],['sun','Sunday']];
+  let hoursByDayData = {{ (shop.hours_by_day if shop and shop.hours_by_day else {})|tojson }};
+
+  function renderHoursByDayGrid(){
+    const grid = document.getElementById('hoursByDayGrid');
+    grid.innerHTML = DAYS.map(([key, label]) => {
+      const d = hoursByDayData[key] || {open:'9:00 AM', close:'9:00 PM', closed:false};
+      return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--glass-border);">
+        <span style="width:90px; font-size:13px; font-weight:600;">${label}</span>
+        <input type="text" value="${d.open||''}" placeholder="Open" style="width:100px; padding:6px 8px; border-radius:6px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi);" data-day="${key}" data-field="open">
+        <span style="color:var(--text-mid);">–</span>
+        <input type="text" value="${d.close||''}" placeholder="Close" style="width:100px; padding:6px 8px; border-radius:6px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi);" data-day="${key}" data-field="close">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-mid); margin-left:8px;">
+          <input type="checkbox" ${d.closed ? 'checked' : ''} data-day="${key}" data-field="closed"> Closed
+        </label>
+      </div>`;
+    }).join('');
+  }
+  renderHoursByDayGrid();
+
+  async function saveHoursByDay(){
+    const grid = document.getElementById('hoursByDayGrid');
+    const newData = {};
+    DAYS.forEach(([key]) => {
+      const open = grid.querySelector(`input[data-day="${key}"][data-field="open"]`).value;
+      const close = grid.querySelector(`input[data-day="${key}"][data-field="close"]`).value;
+      const closed = grid.querySelector(`input[data-day="${key}"][data-field="closed"]`).checked;
+      newData[key] = {open, close, closed};
+    });
+    try {
+      const res = await fetch('/api/shop', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({hours_by_day: newData})});
+      if(res.ok){ hoursByDayData = newData; alert('Hours saved! Regenerate your site to publish them.'); }
+      else alert('Could not save hours.');
+    } catch(e){ alert('Backend not reachable.'); }
+  }
+
+  async function loadOrders(){
+    const tbody = document.getElementById('ordersTableBody');
+    try {
+      const res = await fetch('/api/orders');
+      const data = await res.json();
+      const orders = data.orders || [];
+      if(orders.length === 0){
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No orders yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = orders.map(o => `
+        <tr>
+          <td>${o.customer_name || 'Unknown'}<br><span style="font-size:11px; color:var(--text-mid);">${o.customer_phone || ''}</span></td>
+          <td style="max-width:280px;">${o.notes || ''}</td>
+          <td>
+            <select onchange="updateOrderStatus('${o._id}', this.value)" style="padding:4px 8px; border-radius:6px; background:var(--glass); border:1px solid var(--glass-border); color:var(--text-hi);">
+              <option value="new" ${o.status==='new'?'selected':''}>New</option>
+              <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmed</option>
+              <option value="done" ${o.status==='done'?'selected':''}>Done</option>
+            </select>
+          </td>
+          <td></td>
+        </tr>`).join('');
+    } catch(e){
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Backend not reachable.</td></tr>';
+    }
+  }
+
+  async function updateOrderStatus(orderId, status){
+    try {
+      await fetch(`/api/orders/${orderId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status})});
+    } catch(e){ alert('Could not update order status.'); }
+  }
+
+  // Load orders when that tab is first opened
+  document.querySelector('[data-page="orders"]').addEventListener('click', loadOrders);
+
+  async function addProduct(){
+    const name = document.getElementById('newProdName').value;
+    const price = document.getElementById('newProdPrice').value;
+    const category = document.getElementById('newProdCategory').value;
+    const description = document.getElementById('newProdDescription').value;
+    const photoInput = document.getElementById('newProdPhoto');
+
+    if(!name || !price){ alert('Name and price required.'); return; }
+
+    let photos = [];
+    if(photoInput.files.length > 0){
+      for(const file of photoInput.files){
+        const formData = new FormData();
+        formData.append('photo', file);
+        try {
+          const uploadRes = await fetch('/api/upload-photo', {method:'POST', body: formData});
+          const uploadData = await uploadRes.json();
+          if(uploadRes.ok) photos.push(uploadData.photo_url);
+        } catch(e){ /* skip this photo, continue with others */ }
+      }
+    }
+    const photoUrl = photos[0] || '';
+
+    try {
+      const res = await fetch('/api/product', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, price, category, description, photo_url: photoUrl, photos})
+      });
+      const data = await res.json();
+      if(!res.ok){ alert(data.error || 'Could not add product.'); return; }
+
+      const tbody = document.getElementById('productTableBody');
+      const emptyRow = tbody.querySelector('.empty-state');
+      if(emptyRow) emptyRow.closest('tr').remove();
+
+      const row = document.createElement('tr');
+      row.draggable = true;
+      row.dataset.productId = data.product_id;
+      const thumbHtml = photoUrl
+        ? `<img class="prod-thumb" src="${photoUrl}" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"><span class="prod-thumb-fallback" style="display:none;">📦</span>`
+        : `<span class="prod-thumb-fallback">📦</span>`;
+      row.innerHTML = `<td class="row-flex">⠿ ${thumbHtml}<span class="prod-name">${name}</span>${photos.length>1 ? `<span style="font-size:11px;color:var(--text-mid);margin-left:6px;">+${photos.length-1} photos</span>` : ''}</td><td class="price-tag prod-price">₹${price}</td><td class="prod-category">${category||'General'}</td><td><button class="btn-icon" onclick="editProduct(this)">Edit</button> <button class="btn-icon" onclick="deleteProduct(this)">Delete</button></td>`;
+      tbody.appendChild(row);
+
+      document.getElementById('newProdName').value = '';
+      document.getElementById('newProdPrice').value = '';
+      document.getElementById('newProdCategory').value = '';
+      document.getElementById('newProdDescription').value = '';
+      photoInput.value = '';
+      enableDragReorder();
+    } catch(e){
+      alert('Backend not reachable — is the Flask server running?');
+    }
+  }
+
+  function readFileAsBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function generateAiDescription(){
+    const name = document.getElementById('newProdName').value;
+    const category = document.getElementById('newProdCategory').value;
+    if(!name){ alert('Enter a product name first.'); return; }
+    const textarea = document.getElementById('newProdDescription');
+    const btn = event.target;
+    const originalBtnText = btn.innerText;
+    btn.disabled = true;
+    textarea.value = '';
+
+    const photoInput = document.getElementById('newProdPhoto');
+    let imageBase64 = '';
+    if(photoInput.files.length > 0){
+      const file = photoInput.files[0];
+      if(file.size > 4 * 1024 * 1024){
+        alert('Photo is too large for AI analysis (max 4MB) — generating from name/category only.');
+      } else {
+        btn.innerText = 'Reading photo...';
+        try {
+          imageBase64 = await readFileAsBase64(file);
+        } catch(e){
+          console.warn('[AI Suggest] Could not read photo, continuing without it:', e);
+        }
+      }
+    }
+
+    btn.innerText = imageBase64 ? 'Analyzing photo...' : 'Generating...';
+    textarea.placeholder = btn.innerText;
+
+    try {
+      const res = await fetch('/api/ai/describe', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, category, image_base64: imageBase64})
+      });
+      const data = await res.json();
+      console.log('[AI Suggest] response:', data);
+      if(res.ok && data.description && data.description.trim()){
+        textarea.value = data.description;
+      } else if(res.ok) {
+        textarea.placeholder = 'AI returned an empty response — try again or write your own.';
+      } else {
+        textarea.placeholder = 'Optional — write your own';
+        alert(data.error || 'AI description failed.');
+      }
+    } catch(e){
+      console.error('[AI Suggest] error:', e);
+      textarea.placeholder = 'Optional — write your own';
+      alert('Backend not reachable.');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = originalBtnText;
+    }
+  }
+
+  // ---- Drag-to-reorder products ----
+  let draggedRow = null;
+  function enableDragReorder(){
+    const tbody = document.getElementById('productTableBody');
+    tbody.querySelectorAll('tr[data-product-id]').forEach(row => {
+      row.draggable = true;
+      row.ondragstart = () => { draggedRow = row; row.style.opacity = '0.4'; };
+      row.ondragend = () => { row.style.opacity = '1'; saveProductOrder(); };
+      row.ondragover = (e) => {
+        e.preventDefault();
+        const bounding = row.getBoundingClientRect();
+        const offset = e.clientY - bounding.top;
+        if (offset > bounding.height / 2) row.after(draggedRow);
+        else row.before(draggedRow);
+      };
+    });
+  }
+
+  async function saveProductOrder(){
+    const ids = Array.from(document.querySelectorAll('#productTableBody tr[data-product-id]')).map(r => r.dataset.productId);
+    try {
+      await fetch('/api/products/reorder', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({product_ids: ids})
+      });
+    } catch(e){ /* silent — order will just not persist if backend unreachable */ }
+  }
+  enableDragReorder();
+
+  function editProduct(btn){
+    const row = btn.closest('tr');
+    const productId = row.dataset.productId;
+    const currentName = row.querySelector('.prod-name').innerText;
+    const currentPrice = row.querySelector('.prod-price').innerText.replace('₹','');
+    const currentCategory = row.querySelector('.prod-category').innerText;
+    const currentImg = row.querySelector('.prod-thumb');
+    const currentPhotoUrl = currentImg ? currentImg.src : '';
+
+    // Replace the row with an inline edit form (so we can include a file picker,
+    // which a plain prompt() dialog can't do).
+    row.dataset.editing = 'true';
+    row.innerHTML = `
+      <td colspan="4">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:6px 0;">
+          <input type="text" class="edit-name" value="${currentName}" placeholder="Name" style="flex:1; min-width:120px; padding:8px; border-radius:7px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi);">
+          <input type="text" class="edit-price" value="${currentPrice}" placeholder="Price" style="width:90px; padding:8px; border-radius:7px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi);">
+          <input type="text" class="edit-category" value="${currentCategory}" placeholder="Category" style="width:120px; padding:8px; border-radius:7px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-hi);">
+          <input type="file" class="edit-photo" accept="image/*" style="max-width:160px; font-size:12px;">
+          <button class="btn btn-primary" onclick="saveEditedProduct('${productId}', this)" style="padding:8px 14px;">Save</button>
+          <button class="btn-icon" onclick="cancelEditProduct('${productId}', '${currentName.replace(/'/g,"\\'")}','${currentPrice}','${currentCategory.replace(/'/g,"\\'")}','${currentPhotoUrl}')">Cancel</button>
+        </div>
+      </td>`;
+  }
+
+  function cancelEditProduct(productId, name, price, category, photoUrl){
+    const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+    const thumbHtml = photoUrl
+      ? `<img class="prod-thumb" src="${photoUrl}" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"><span class="prod-thumb-fallback" style="display:none;">📦</span>`
+      : `<span class="prod-thumb-fallback">📦</span>`;
+    row.innerHTML = `<td class="row-flex">${thumbHtml}<span class="prod-name">${name}</span></td><td class="price-tag prod-price">₹${price}</td><td class="prod-category">${category}</td><td><button class="btn-icon" onclick="editProduct(this)">Edit</button> <button class="btn-icon" onclick="deleteProduct(this)">Delete</button></td>`;
+  }
+
+  async function saveEditedProduct(productId, saveBtn){
+    const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+    const newName = row.querySelector('.edit-name').value;
+    const newPrice = row.querySelector('.edit-price').value;
+    const newCategory = row.querySelector('.edit-category').value;
+    const photoFile = row.querySelector('.edit-photo').files[0];
+
+    if(!newName || !newPrice){ alert('Name and price required.'); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Saving...';
+
+    let photoUrl = null; // null = don't change; empty string would clear it
+    if(photoFile){
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+      try {
+        const uploadRes = await fetch('/api/upload-photo', {method:'POST', body: formData});
+        const uploadData = await uploadRes.json();
+        if(uploadRes.ok) photoUrl = uploadData.photo_url;
+      } catch(e){ /* keep old photo if upload fails */ }
+    }
+
+    const payload = {name: newName, price: newPrice, category: newCategory};
+    if(photoUrl !== null) payload.photo_url = photoUrl;
+
+    try {
+      const res = await fetch(`/api/product/${productId}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok){ alert(data.error || 'Could not update product.'); saveBtn.disabled=false; saveBtn.innerText='Save'; return; }
+
+      const finalPhotoUrl = photoUrl !== null ? photoUrl : (row.querySelector('img.prod-thumb')?.src || '');
+      cancelEditProduct(productId, newName, newPrice, newCategory, finalPhotoUrl);
+    } catch(e){
+      alert('Backend not reachable.');
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save';
+    }
+  }
+
+  async function deleteProduct(btn){
+    const row = btn.closest('tr');
+    const productId = row.dataset.productId;
+    if(!confirm('Delete this product?')) return;
+
+    try {
+      const res = await fetch(`/api/product/${productId}`, {method: 'DELETE'});
+      const data = await res.json();
+      if(!res.ok){ alert(data.error || 'Could not delete product.'); return; }
+
+      row.remove();
+      const tbody = document.getElementById('productTableBody');
+      if(tbody.children.length === 0){
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No products yet — add your first one above.</td></tr>';
+      }
+    } catch(e){
+      alert('Backend not reachable.');
+    }
+  }
+
+  async function applyTheme(){
+    const selected = document.querySelector('.theme-option.selected');
+    const themeKey = selected.dataset.theme || 'macos';
+
+    try {
+      const res = await fetch('/api/shop', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({theme: themeKey})
+      });
+      if (res.ok) {
+        alert('Theme saved! Go to Overview and click "Regenerate Site" to publish it.');
+      } else {
+        alert('Could not save theme — try again.');
+      }
+    } catch(e){
+      alert('Backend not reachable.');
+    }
+  }
+
+  async function regenerateSite(){
+    const btn = document.getElementById('regenerateBtn');
+    btn.disabled = true;
+    btn.innerText = 'Generating...';
+
+    try {
+      const res = await fetch('/api/generate-site', {method: 'POST'});
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('liveSiteUrl').innerText = data.live_url;
+        alert('Site generated! Live at:\n' + data.live_url);
+      } else {
+        alert('Could not generate site: ' + (data.error || 'Unknown error. Make sure Shop Info is saved first.'));
+      }
+    } catch(e) {
+      alert('Backend not reachable — is the Flask server running?');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = 'Regenerate Site';
+    }
+  }
+
+  function previewLiveSite(){
+    const url = document.getElementById('liveSiteUrl').innerText.trim();
+    if (!url || url.includes('your-shop') || url.includes('not generated')) {
+      alert('Generate your site first — click "Regenerate Site" above.');
+      return;
+    }
+    window.open(url, '_blank');
+  }
+
+  function getValidLiveUrl(){
+    const url = document.getElementById('liveSiteUrl').innerText.trim();
+    if (!url || url.includes('your-shop') || url.includes('not generated') || url.includes('PLACEHOLDER')) {
+      return null;
+    }
+    return url;
+  }
+
+  async function copyLiveSiteLink(){
+    const url = getValidLiveUrl();
+    if (!url) { alert('Generate your site first.'); return; }
+    await navigator.clipboard.writeText(url);
+    alert('Link copied!');
+  }
+
+  async function shareLiveSiteLink(){
+    const url = getValidLiveUrl();
+    if (!url) { alert('Generate your site first.'); return; }
+    if (navigator.share) {
+      try { await navigator.share({title: 'Check out my shop', url: url}); }
+      catch(e){ /* user cancelled share sheet — fine */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied! (Share not supported in this browser, so we copied it instead.)');
+    }
+  }
+
+  async function generateQR(){
+    const siteUrl = getValidLiveUrl();
+    if (!siteUrl) {
+      alert('Generate your site first on the Overview tab — the QR code needs a real live URL to point to.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/generate-qr', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({site_url: siteUrl, shop_id: "{{ shop._id if shop else '' }}"})});
+      const data = await res.json();
+      document.getElementById('qrPreview').innerHTML = `<img id="qrImage" src="${data.qr_code}" style="width:100%;height:100%;border-radius:8px;">`;
+      document.getElementById('qrActions').classList.add('visible');
+    } catch(e){
+      document.getElementById('qrPreview').innerText = 'Backend not reachable.';
+    }
+  }
+
+  function downloadQR(){
+    const img = document.getElementById('qrImage');
+    if (!img) return;
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'shop-qr-code.png';
+    a.click();
+  }
+
+  async function shareQR(){
+    const img = document.getElementById('qrImage');
+    if (!img) return;
+    if (navigator.share && navigator.canShare) {
+      try {
+        const blob = await (await fetch(img.src)).blob();
+        const file = new File([blob], 'shop-qr-code.png', {type: 'image/png'});
+        if (navigator.canShare({files: [file]})) {
+          await navigator.share({files: [file], title: 'Scan to visit my shop'});
+          return;
+        }
+      } catch(e){ /* fall through to download */ }
+    }
+    downloadQR();
+    alert('Sharing not supported here — downloaded instead.');
+  }
+
+  let lastWhatsAppMessage = '';
+
+  async function generateWhatsAppCatalog(){
+    try {
+      const res = await fetch('/api/generate-whatsapp-catalog', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById('waPreview').innerHTML = `<div class="link-box">${data.error || 'Could not generate — save Shop Info and add products first.'}</div>`;
+        return;
+      }
+      lastWhatsAppMessage = data.message;
+      document.getElementById('waPreview').innerHTML = `<div class="link-box">${data.message.replace(/\n/g,'<br>')}</div>`;
+      document.getElementById('waActions').classList.add('visible');
+    } catch(e){
+      document.getElementById('waPreview').innerHTML = '<div class="link-box">Backend not reachable.</div>';
+    }
+  }
+
+  async function copyWhatsAppMessage(){
+    if (!lastWhatsAppMessage) return;
+    await navigator.clipboard.writeText(lastWhatsAppMessage);
+    alert('Message copied!');
+  }
+
+  function shareWhatsAppMessage(){
+    if (!lastWhatsAppMessage) return;
+    const encoded = encodeURIComponent(lastWhatsAppMessage);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+  }
+</script>
+</body>
+</html>

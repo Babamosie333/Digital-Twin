@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product — {{ shop.name }}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-shop-id="{{ shop._id }}" data-backend-url="{{ backend_url }}">
+<a href="#main" class="skip-link">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 5h16M2 10h16M2 15h16"/></svg>
+    </button>
+    <a href="index.html" class="wordmark">{{ shop.name }}</a>
+    <nav class="main-nav">
+      <a href="shop.html">All Products</a>
+      {% for cat in (products|map(attribute='category')|reject('equalto', None)|unique|list)[:4] %}
+      <a href="shop.html?cat={{ cat }}">{{ cat }}</a>
+      {% endfor %}
+    </nav>
+    <form class="header-search" id="headerSearchForm">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="headerSearchInput" placeholder="Search">
+    </form>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><span class="knob"></span></button>
+      <a href="#" class="icon-btn" id="cartOpenBtn" aria-label="Open cart">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M1 1h4l2.7 13.6a2 2 0 0 0 2 1.6h9.1a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+        <span class="cart-count" style="display:none;">0</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <div class="crumb"><a href="index.html">Home</a> / <a href="shop.html">All Products</a> / <span id="crumbTitle"></span></div>
+  </div>
+
+  <section class="section" style="padding-top:0;">
+    <div class="wrap" id="pdp"></div>
+  </section>
+
+  <section class="section" id="relatedSection" style="display:none;">
+    <div class="wrap">
+      <div class="section-head"><div><h2>You might also like</h2></div></div>
+      <div class="grid" id="relatedGrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom" style="border-top:2px solid var(--ink);">
+      <span>© 2026 {{ shop.name }}</span>
+      <span>Powered by Digital Twin Connector</span>
+    </div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  window.SHOP_INFO = { id: "{{ shop._id }}", whatsapp: {{ (shop.whatsapp or '')|tojson }}, hours: {{ (shop.hours or '')|tojson }}, contact: {{ (shop.contact or '')|tojson }} };
+  window.BACKEND_URL = "{{ backend_url }}";
+
+  const params = new URLSearchParams(window.location.search);
+  const product = getProduct(params.get("id"));
+
+  if(!product){
+    document.getElementById("pdp").innerHTML = `<div style="padding:80px 0; text-align:center;"><h2>Product not found</h2><a href="shop.html" class="btn btn-accent" style="margin-top:16px; display:inline-block;">Back to shop</a></div>`;
+  } else {
+    document.getElementById("crumbTitle").textContent = product.title;
+    document.title = product.title + " — {{ shop.name }}";
+
+    const gallery = (product.photos && product.photos.length ? product.photos : (product.photo ? [product.photo] : []));
+
+    document.getElementById("pdp").innerHTML = `
+      <div id="pdpGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start;">
+        <div>
+          <div class="pdp-media" id="pdpMainMedia" style="aspect-ratio:1; border:2px solid var(--line); overflow:hidden; margin-bottom:12px;"></div>
+          <div id="pdpThumbs" style="display:flex; gap:10px;"></div>
+        </div>
+        <div>
+          <p class="hero-eyebrow">// ${product.category.toUpperCase()}</p>
+          <h1 style="margin:6px 0 14px;">${product.title}</h1>
+          <div class="card-price" style="font-size:1.4rem; margin-bottom:18px;"><span class="now">${formatPrice(product.price)}</span></div>
+          ${product.description ? `<p style="color:var(--ink-soft); line-height:1.7; margin-bottom:24px;">${product.description}</p>` : ""}
+
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:20px;">
+            <div class="qty-stepper" style="display:flex; align-items:center; border:2px solid var(--ink);">
+              <button id="qtyMinus" style="width:38px; height:38px; background:none; border:none; cursor:pointer; font-size:16px;">−</button>
+              <span id="qtyVal" style="width:36px; text-align:center; font-weight:600;">1</span>
+              <button id="qtyPlus" style="width:38px; height:38px; background:none; border:none; cursor:pointer; font-size:16px;">+</button>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <button id="addToCartBtn" class="btn btn-accent btn-block">Add to Cart</button>
+            <a href="https://wa.me/${window.SHOP_INFO.whatsapp}?text=${encodeURIComponent('Hi, I\\'m interested in ' + product.title + ' (' + formatPrice(product.price) + ')')}" class="btn btn-outline btn-block">Ask on WhatsApp</a>
+          </div>
+
+          <div style="margin-top:28px; border-top:2px solid var(--line); padding-top:20px; font-size:0.86rem; color:var(--ink-soft); line-height:1.8;">
+            <div>🕒 ${window.SHOP_INFO.hours || ""}</div>
+            <div>📞 ${window.SHOP_INFO.contact || ""}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    let activePhoto = 0;
+    function renderMedia(){
+      const mainEl = document.getElementById("pdpMainMedia");
+      mainEl.innerHTML = gallery.length ? `<img src="${gallery[activePhoto]}" style="width:100%;height:100%;object-fit:cover;">` : productMedia(product);
+      document.getElementById("pdpThumbs").innerHTML = gallery.map((src, i) =>
+        `<button class="thumb-btn ${i===activePhoto?'active':''}" data-i="${i}" style="width:60px;height:60px;border:2px solid ${i===activePhoto?'var(--ink)':'var(--line)'};padding:0;cursor:pointer;overflow:hidden;background:none;"><img src="${src}" style="width:100%;height:100%;object-fit:cover;"></button>`
+      ).join("");
+      document.querySelectorAll(".thumb-btn").forEach(btn => {
+        btn.addEventListener("click", () => { activePhoto = parseInt(btn.dataset.i); renderMedia(); });
+      });
+    }
+    renderMedia();
+
+    let qty = 1;
+    document.getElementById("qtyMinus").addEventListener("click", () => { if(qty > 1){ qty--; document.getElementById("qtyVal").textContent = qty; } });
+    document.getElementById("qtyPlus").addEventListener("click", () => { qty++; document.getElementById("qtyVal").textContent = qty; });
+
+    document.getElementById("addToCartBtn").addEventListener("click", () => {
+      addToCart(product.id, qty);
+      showToast(`Added ${product.title} to cart`, `<a href="cart.html">View cart</a>`);
+    });
+
+    const related = PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+    if(related.length){
+      document.getElementById("relatedSection").style.display = "block";
+      document.getElementById("relatedGrid").innerHTML = related.map(p => `
+        <a href="product.html?id=${p.id}" class="card">
+          <div class="card-media">${productMedia(p)}</div>
+          <div class="card-cat">${p.category}</div>
+          <div class="card-title">${p.title}</div>
+          <div class="card-price"><span class="now">${formatPrice(p.price)}</span></div>
+        </a>
+      `).join("");
+    }
+  }
+</script>
+</body>
+</html>

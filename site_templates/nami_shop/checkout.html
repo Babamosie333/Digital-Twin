@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — {{ shop.name }}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-shop-id="{{ shop._id }}" data-backend-url="{{ backend_url }}">
+<header class="site-header">
+  <div class="wrap header-row">
+    <a href="index.html" class="wordmark">{{ shop.name }}</a>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><span class="knob"></span></button>
+    </div>
+  </div>
+</header>
+<main id="main">
+  <div class="wrap" style="max-width:560px; margin:0 auto; padding:48px 24px;">
+    <h1 style="margin-bottom:8px;">Checkout</h1>
+    <p style="color:var(--ink-soft); margin-bottom:32px;">Fill this in and we'll get your order on WhatsApp instantly.</p>
+
+    <div id="orderSummary" style="border:2px solid var(--line); padding:20px; margin-bottom:28px;"></div>
+
+    <form id="checkoutForm">
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">Your Name</label>
+        <input type="text" id="custName" required style="width:100%; padding:12px 14px; border:2px solid var(--line); background:var(--bg-raised); color:var(--ink);">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">Phone Number</label>
+        <input type="tel" id="custPhone" required style="width:100%; padding:12px 14px; border:2px solid var(--line); background:var(--bg-raised); color:var(--ink);">
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">Notes (optional)</label>
+        <textarea id="custNotes" rows="3" style="width:100%; padding:12px 14px; border:2px solid var(--line); background:var(--bg-raised); color:var(--ink);"></textarea>
+      </div>
+      <button type="submit" id="submitOrderBtn" class="btn btn-accent btn-block">Send Order via WhatsApp</button>
+      <p id="orderStatus" style="font-size:0.85rem; margin-top:12px; text-align:center;"></p>
+    </form>
+
+    <div id="orderSuccess" style="display:none; text-align:center; padding:40px 0;">
+      <h2>Order sent! 🎉</h2>
+      <p style="color:var(--ink-soft); margin:12px 0 24px;">We'll confirm your order on WhatsApp shortly.</p>
+      <a href="index.html" class="btn btn-outline">Back to shop</a>
+    </div>
+  </div>
+</main>
+<footer class="site-footer"><div class="wrap"><div class="footer-bottom" style="border-top:2px solid var(--ink);"><span>© 2026 {{ shop.name }}</span><span>Powered by Digital Twin Connector</span></div></div></footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  window.SHOP_INFO = { id: "{{ shop._id }}" };
+  window.BACKEND_URL = "{{ backend_url }}";
+
+  const cart = getCart();
+  if(cart.length === 0){
+    document.getElementById("main").innerHTML = `<div class="wrap" style="text-align:center; padding:80px 0;"><h2>Your cart is empty</h2><a href="shop.html" class="btn btn-accent" style="margin-top:16px; display:inline-block;">Browse products</a></div>`;
+  } else {
+    document.getElementById("orderSummary").innerHTML = cart.map(l => {
+      const p = getProduct(l.id);
+      return p ? `<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:0.9rem;"><span>${p.title} × ${l.qty}</span><span>${formatPrice(p.price * l.qty)}</span></div>` : "";
+    }).join("") + `<div style="display:flex; justify-content:space-between; font-weight:700; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"><span>Total</span><span>${formatPrice(cartSubtotal())}</span></div>`;
+
+    document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("submitOrderBtn");
+      const status = document.getElementById("orderStatus");
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+      try {
+        const data = await submitWhatsAppOrder(
+          document.getElementById("custName").value,
+          document.getElementById("custPhone").value,
+          document.getElementById("custNotes").value
+        );
+        localStorage.removeItem("digitaltwin_cart");
+        document.getElementById("checkoutForm").style.display = "none";
+        document.getElementById("orderSummary").style.display = "none";
+        document.getElementById("orderSuccess").style.display = "block";
+        if(data.whatsapp_link) window.open(data.whatsapp_link, "_blank");
+      } catch(err){
+        status.textContent = "Could not send order — please try again or message us on WhatsApp directly.";
+        btn.disabled = false;
+        btn.textContent = "Send Order via WhatsApp";
+      }
+    });
+  }
+</script>
+</body>
+</html>
