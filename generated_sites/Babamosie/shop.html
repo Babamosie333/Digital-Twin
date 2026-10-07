@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>All Products — Babamosie</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-shop-id="6a9ff2ce190f967a00974074" data-backend-url="http://127.0.0.1:5000">
+<a href="#main" class="skip-link">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 5h16M2 10h16M2 15h16"/></svg>
+    </button>
+    <a href="index.html" class="wordmark">Babamosie</a>
+    <nav class="main-nav">
+      <a href="shop.html" class="active">All Products</a>
+      
+      <a href="shop.html?cat=Website">Website</a>
+      
+      <a href="shop.html?cat="></a>
+      
+    </nav>
+    <form class="header-search" id="headerSearchForm">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="headerSearchInput" placeholder="Search">
+    </form>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><span class="knob"></span></button>
+      <a href="#" class="icon-btn" id="cartOpenBtn" aria-label="Open cart">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M1 1h4l2.7 13.6a2 2 0 0 0 2 1.6h9.1a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+        <span class="cart-count" style="display:none;">0</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <div class="crumb"><a href="index.html">Home</a> / <span id="crumbLabel">All Products</span></div>
+  </div>
+
+  <section class="section" style="padding-top:0;">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="pageTitle">All Products</h2>
+          <p id="resultCount"></p>
+        </div>
+        <select id="sortSelect" style="border:2px solid var(--line); background:var(--bg-raised); color:var(--ink); padding:10px 14px; font-size:0.85rem;">
+          <option value="featured">SORT: FEATURED</option>
+          <option value="price-asc">PRICE: LOW TO HIGH</option>
+          <option value="price-desc">PRICE: HIGH TO LOW</option>
+        </select>
+      </div>
+
+      <div class="filter-bar" id="filterBar"></div>
+
+      <div class="grid" id="productGrid"></div>
+      <p id="emptyMsg" style="display:none; text-align:center; color:var(--ink-soft); padding:60px 0;">No products match. Try a different term or category.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom" style="border-top:2px solid var(--ink);">
+      <span>© 2026 Babamosie</span>
+      <span>Powered by Digital Twin Connector</span>
+    </div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  window.SHOP_INFO = { id: "6a9ff2ce190f967a00974074", whatsapp: "918081477034" };
+  window.BACKEND_URL = "http://127.0.0.1:5000";
+
+  const params = new URLSearchParams(window.location.search);
+  let activeCat = params.get("cat") || "All";
+  let query = params.get("q") || "";
+  let sort = "featured";
+
+  const categories = ["All", ...new Set(PRODUCTS.map(p => p.category))];
+
+  function renderFilterBar(){
+    document.getElementById("filterBar").innerHTML = categories.map(c =>
+      `<button class="chip ${c === activeCat ? "active" : ""}" data-cat="${c}">${c}</button>`
+    ).join("");
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        activeCat = chip.dataset.cat;
+        renderFilterBar();
+        renderGrid();
+        document.getElementById("pageTitle").textContent = activeCat === "All" ? "All Products" : activeCat;
+        document.getElementById("crumbLabel").textContent = activeCat === "All" ? "All Products" : activeCat;
+      });
+    });
+  }
+
+  function cardHTML(p){
+    return `
+      <a href="product.html?id=${p.id}" class="card">
+        <div class="card-media">${productMedia(p)}</div>
+        <button class="quick-add" aria-label="Quick add ${p.title}" onclick="event.preventDefault(); event.stopPropagation(); quickAdd('${p.id}');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="card-cat">${p.category}</div>
+        <div class="card-title">${p.title}</div>
+        <div class="card-price"><span class="now">${formatPrice(p.price)}</span></div>
+      </a>
+    `;
+  }
+
+  function quickAdd(id){
+    const p = getProduct(id);
+    addToCart(id, 1);
+    showToast(`Added ${p.title} to cart`, `<a href="cart.html">View cart</a>`);
+  }
+
+  function renderGrid(){
+    let list = PRODUCTS.filter(p => activeCat === "All" || p.category === activeCat);
+    if(query){
+      const q = query.toLowerCase();
+      list = list.filter(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.description||"").toLowerCase().includes(q));
+    }
+    if(sort === "price-asc") list = [...list].sort((a,b) => a.price - b.price);
+    if(sort === "price-desc") list = [...list].sort((a,b) => b.price - a.price);
+
+    document.getElementById("productGrid").style.display = list.length ? "grid" : "none";
+    document.getElementById("emptyMsg").style.display = list.length ? "none" : "block";
+    document.getElementById("productGrid").innerHTML = list.map(cardHTML).join("");
+    document.getElementById("resultCount").textContent = `${list.length} product${list.length === 1 ? "" : "s"}${query ? ` for "${query}"` : ""}`;
+  }
+
+  if(activeCat !== "All"){
+    document.getElementById("pageTitle").textContent = activeCat;
+    document.getElementById("crumbLabel").textContent = activeCat;
+  }
+  if(query){
+    document.getElementById("pageTitle").textContent = `Search results`;
+    document.getElementById("crumbLabel").textContent = "Search";
+    document.getElementById("headerSearchInput").value = query;
+  }
+
+  document.getElementById("sortSelect").addEventListener("change", (e) => { sort = e.target.value; renderGrid(); });
+
+  renderFilterBar();
+  renderGrid();
+</script>
+</body>
+</html>

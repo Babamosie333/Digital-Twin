@@ -990,4 +990,13 @@ if __name__ == "__main__":
     # in-flight request and causing "Backend not reachable" errors in the browser.
     # threaded=True: lets Flask handle more than one request at a time, so a slow
     # deploy (wrangler) doesn't block other pages/requests while it runs.
-    app.run(debug=True, port=5000, use_reloader=False, threaded=True)
+    # host="0.0.0.0": required for Render (and most cloud hosts) — binding to
+    # 127.0.0.1 only accepts connections from inside the container itself,
+    # which is why Render's port scanner couldn't find it ("No open ports
+    # detected on 0.0.0.0"). 0.0.0.0 accepts connections from anywhere,
+    # which is safe here since the host platform handles the actual firewall.
+    # port: Render assigns its own port via the PORT env variable at runtime;
+    # locally (no PORT set) this falls back to 5000 as before.
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode, use_reloader=False, threaded=True)
