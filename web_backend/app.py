@@ -58,6 +58,24 @@ if GROQ_API_KEY:
     except Exception as e:
         print(f"[startup] Groq client failed to initialize: {e}")
 
+# ---------------- Cloudinary (permanent photo storage) ----------------
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+cloudinary_ready = False
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        cloudinary.config(cloud_name=CLOUDINARY_CLOUD_NAME, api_key=CLOUDINARY_API_KEY,
+                          api_secret=CLOUDINARY_API_SECRET, secure=True)
+        cloudinary_ready = True
+        print("[startup] Cloudinary initialized - photos will be stored permanently.")
+    except Exception as e:
+        print(f"[startup] Cloudinary failed to initialize, falling back to local disk: {e}")
+else:
+    print("[startup] Cloudinary not configured - photos saved to local disk only (will not survive a Render redeploy).")
+
 # ---------------- Gemini (image analysis for AI descriptions) ----------------
 # Your Groq account currently has no vision-capable models (confirmed via
 # get_available_groq_models() below), so photo analysis uses Gemini instead —
@@ -604,14 +622,21 @@ def upload_photo():
     if file.filename == "" or not allowed_file(file.filename):
         return jsonify({"error": "invalid file"}), 400
 
+    if cloudinary_ready:
+        try:
+            result = cloudinary.uploader.upload(
+                file, folder="digital-twin/products", resource_type="image",
+                transformation=[{"width": 1600, "crop": "limit"}, {"quality": "auto", "fetch_format": "auto"}])
+            return jsonify({"status": "ok", "photo_url": result["secure_url"], "storage": "cloudinary"})
+        except Exception as e:
+            print(f"[upload_photo] Cloudinary upload failed, falling back to local disk: {e}")
+            file.seek(0)
+
     filename = secure_filename(f"{datetime.utcnow().timestamp()}_{file.filename}")
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
-
-    # In production this would upload to a CDN/object storage (e.g. Cloudflare R2);
-    # for now it's served locally via Flask's static route.
     photo_url = url_for("static", filename=f"uploads/{filename}", _external=True)
-    return jsonify({"status": "ok", "photo_url": photo_url})
+    return jsonify({"status": "ok", "photo_url": photo_url, "storage": "local"})
 
 
 @app.route("/api/generate-site", methods=["POST"])
