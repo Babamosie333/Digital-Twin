@@ -375,6 +375,15 @@ def logout():
     return jsonify({"status": "logged_out"})
 
 
+def _current_user_email(user_id):
+    """Best-effort email of the signed-in owner, for the dashboard user menu."""
+    try:
+        u = users_col.find_one({"_id": ObjectId(user_id)})
+        return (u or {}).get("email") or ""
+    except Exception:
+        return ""
+
+
 # ---------------- Dashboard ----------------
 @app.route("/dashboard")
 def dashboard():
@@ -408,7 +417,8 @@ def dashboard():
     return render_template(
         "dashboard.html", shop=shop, products=products,
         site_status=site_status, site_live_url=site_live_url,
-        view_count=view_count, scan_count=scan_count
+        view_count=view_count, scan_count=scan_count,
+        clerk_pk=CLERK_PUBLISHABLE_KEY, user_email=_current_user_email(user_id)
     )
 
 

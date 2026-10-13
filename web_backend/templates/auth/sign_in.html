@@ -1,48 +1,18 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in</title><style>
-:root{--bg:#f5f6ff;--card:#fff;--t:#1b1d3a;--m:#6b6f93;--a:#4f46e5;--b:rgba(27,29,58,.12)}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1020;--card:#191a33;--t:#f1f2ff;--m:#a0a4cc;--b:rgba(255,255,255,.12)}}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--t);font-family:Inter,'Segoe UI',sans-serif;padding:16px}
-.c{width:100%;max-width:400px;background:var(--card);border:1px solid var(--b);border-radius:20px;padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08)}
-h1{margin:0 0 4px;font-size:1.5rem}p.s{margin:0 0 20px;color:var(--m);font-size:.9rem}
-input{width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--b);border-radius:12px;background:transparent;color:var(--t);font-size:1rem}
-button{width:100%;padding:12px;border:0;border-radius:12px;background:var(--a);color:#fff;font-size:1rem;font-weight:600;cursor:pointer}
-button.g{background:transparent;color:var(--t);border:1px solid var(--b);margin-bottom:14px}
-.e{color:#e5484d;font-size:.85rem;min-height:1.2em;margin:6px 0}.f{text-align:center;margin-top:16px;font-size:.9rem;color:var(--m)}a{color:var(--a)}
-</style></head><body><div class="c">
-<h1>Welcome back</h1><p class="s">Sign in to your Digital Twin dashboard</p>
-<button class="g" id="g">Continue with Google</button>
-<input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Password" autocomplete="current-password">
-<div class="e" id="err"></div><button id="go">Sign in</button>
-<div class="f" id="dev" style="display:none"><a href="/dashboard">Continue in dev mode</a></div>
-<div class="f">No account? <a href="/sign-up">Sign up</a></div></div><script>
-const PK="{{ clerk_pk }}";
-const $=id=>document.getElementById(id);
-const err=m=>$("err").textContent=m||"";
-async function loadClerk(){
-  if(!PK){err("Clerk is not configured on this server.");$("dev").style.display="block";return null;}
-  const host=atob(PK.split("_")[2]).slice(0,-1);
-  await new Promise((ok,bad)=>{const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";
-    s.setAttribute("data-clerk-publishable-key",PK);
-    s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";s.onload=ok;s.onerror=()=>bad(new Error("Could not load Clerk"));document.head.appendChild(s);});
-  await window.Clerk.load();return window.Clerk;
-}
-async function finish(clerk,sessionId){
-  await clerk.setActive({session:sessionId});
-  const u=clerk.user,email=u.primaryEmailAddress?u.primaryEmailAddress.emailAddress:"";
-  await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:u.id,email})});
-  location.href="/dashboard";
-}
-function msg(e){return (e.errors&&e.errors[0]&&(e.errors[0].longMessage||e.errors[0].message))||e.message||"Something went wrong";}
-async function google(clerk,mode){
-  try{const r=location.origin+"/sso-callback";
-    const f=mode==="up"?clerk.client.signUp:clerk.client.signIn;
-    await f.authenticateWithRedirect({strategy:"oauth_google",redirectUrl:r,redirectUrlComplete:r});}catch(e){err(msg(e));}
-}
-</script>
-<script>
-let C=null;loadClerk().then(c=>C=c).catch(e=>err(e.message));
-$("go").onclick=async()=>{err("");if(!C)return err("Clerk not ready");
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in — Digital Twin</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/auth.css"></head><body><aside class="hero"><div class="grid"></div><i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i>
+<div class="brand"><img src="/static/logo.svg" alt="">Digital Twin</div>
+<div class="pitch"><h2>Your shop,<br>live online in minutes.</h2><p>Add your products once. Get a real website, a QR code and WhatsApp ordering — no coding.</p>
+<div class="chips"><span class="chip">🌐 Live website</span><span class="chip">📱 QR code</span><span class="chip">💬 WhatsApp orders</span><span class="chip">🤖 AI descriptions</span></div></div>
+<div class="foot">Built for local businesses</div></aside><main class="side"><div class="card"><h1>Welcome back 👋</h1><p class="sub">Sign in to manage your shop</p>
+<button class="gbtn" id="g"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3-11.3-7.3l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.7-.4-4z"/></svg>Continue with Google</button><div class="or">or with email</div>
+<div class="fl"><input id="em" type="email" placeholder=" " autocomplete="email"><label>Email</label></div>
+<div class="fl"><input id="pw" type="password" placeholder=" " autocomplete="current-password"><label>Password</label><button class="eye" type="button">Show</button></div>
+<div class="err" id="err"></div><button class="btn" id="go">Sign in</button>
+<div class="alt" id="dev" style="display:none"><a href="/dashboard">Continue in dev mode</a></div>
+<div class="alt">New here? <a href="/sign-up">Create an account</a></div></div></main>
+<script>const PK="{{ clerk_pk }}";</script><script src="/static/auth.js"></script>
+<script>eyes();let C=null;loadClerk(PK).then(c=>{C=c;if(C&&C.user&&C.session&&!location.search.includes("force"))syncAndGo(C)}).catch(e=>err(e.message));
+$("go").onclick=async()=>{err("");if(!C)return err("Clerk not ready");busy($("go"),true);
  try{const r=await C.client.signIn.create({identifier:$("em").value.trim(),password:$("pw").value});
-  if(r.status==="complete")await finish(C,r.createdSessionId);else err("Extra verification needed: "+r.status);}catch(e){err(msg(e));}};
+  if(r.status==="complete")await finish(C,r.createdSessionId);else err("Extra verification needed: "+r.status)}catch(e){err(msg(e))}busy($("go"),false)};
 $("g").onclick=()=>C?google(C,"in"):err("Clerk not ready");
-</script></body></html>
+document.addEventListener("keydown",e=>{if(e.key==="Enter")$("go").click()});</script></body></html>

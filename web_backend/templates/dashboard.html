@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Digital Twin</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
 <style>
   body[data-theme="dark"]{
     --bg-1:#1c1e26; --bg-2:#242730;
@@ -134,22 +135,96 @@
     .form-grid{grid-template-columns:1fr;}
     .main{padding:20px;}
   }
+
+  /* ===== Modern theme overrides ===== */
+  body[data-theme="dark"]{--bg-1:#0b0c1e; --bg-2:rgba(22,24,52,0.72); --glass:rgba(255,255,255,0.06); --glass-strong:rgba(255,255,255,0.11); --glass-border:rgba(255,255,255,0.12); --text-hi:#f3f4ff; --text-mid:#aab0d8; --text-low:#7479a8;}
+  body[data-theme="light"]{--bg-1:#f2f3ff; --bg-2:rgba(255,255,255,0.78); --glass:rgba(79,70,229,0.05); --glass-strong:rgba(79,70,229,0.09); --glass-border:rgba(40,40,100,0.12); --text-hi:#15162e; --text-mid:#5a5f86; --text-low:#8a8fb3;}
+  body{font-family:Inter,-apple-system,'Segoe UI',sans-serif; position:relative;}
+  .bg-fx{position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;}
+  .bg-fx i{position:absolute; border-radius:50%; filter:blur(90px); opacity:.45; animation:fx 18s ease-in-out infinite;}
+  .bg-fx .b1{width:520px;height:520px;background:#6366f1;top:-160px;left:-120px;}
+  .bg-fx .b2{width:460px;height:460px;background:#14b8a6;bottom:-160px;right:-100px;animation-delay:-6s;}
+  .bg-fx .b3{width:320px;height:320px;background:#ec4899;top:40%;left:55%;opacity:.25;animation-delay:-12s;}
+  body[data-theme="light"] .bg-fx i{opacity:.28;}
+  @keyframes fx{0%,100%{transform:translate(0,0) scale(1);}33%{transform:translate(70px,50px) scale(1.12);}66%{transform:translate(-50px,70px) scale(.95);}}
+  .bg-grid{position:absolute; inset:0; background-image:linear-gradient(var(--glass-border) 1px,transparent 1px),linear-gradient(90deg,var(--glass-border) 1px,transparent 1px); background-size:48px 48px; mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%); opacity:.55;}
+  .titlebar{background:var(--bg-2); backdrop-filter:blur(18px); height:60px; padding:0 22px;}
+  .tb-left{display:flex; align-items:center; gap:10px;} .tb-title{font-weight:800; letter-spacing:-.02em; font-size:16px;}
+  .logo-sm{width:30px; height:30px; border-radius:9px; vertical-align:middle; box-shadow:0 4px 14px rgba(99,102,241,.45);}
+  .tb-right{display:flex; align-items:center; gap:14px;}
+  .theme-toggle button.active{background:linear-gradient(135deg,#6366f1,#14b8a6);}
+  .user-menu{position:relative;}
+  .avatar,.up-av{width:36px; height:36px; border-radius:50%; border:0; cursor:pointer; color:#fff; font-weight:800; font-size:15px; background:linear-gradient(135deg,#6366f1,#ec4899); display:grid; place-items:center; transition:transform .2s, box-shadow .2s;}
+  .avatar:hover{transform:scale(1.08); box-shadow:0 0 0 4px rgba(99,102,241,.3);}
+  .user-pop{position:absolute; right:0; top:48px; min-width:240px; background:var(--bg-1); backdrop-filter:blur(24px); border:1px solid var(--glass-border); border-radius:16px; padding:8px; box-shadow:0 20px 50px rgba(0,0,0,.35); opacity:0; transform:translateY(-8px) scale(.97); pointer-events:none; transition:all .18s ease; z-index:300;}
+  .user-pop.open{opacity:1; transform:none; pointer-events:auto;}
+  .up-head{display:flex; gap:10px; align-items:center; padding:10px; border-bottom:1px solid var(--glass-border); margin-bottom:6px;}
+  .up-name{font-weight:700; font-size:14px;} .up-mail{font-size:12px; color:var(--text-mid); word-break:break-all;}
+  .up-item{display:block; width:100%; text-align:left; padding:10px 12px; border:0; background:transparent; color:var(--text-hi); border-radius:10px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit;}
+  .up-item:hover{background:var(--glass-strong);} .up-item.danger{color:#f87171;}
+  .sidebar{background:var(--bg-2); backdrop-filter:blur(18px); width:236px;}
+  .sidebar .brand{display:flex; align-items:center; gap:10px; font-size:16px;}
+  .nav-item{border-radius:12px; padding:11px 14px; position:relative; overflow:hidden;}
+  .nav-item:hover{transform:translateX(3px);}
+  .nav-item.active{background:linear-gradient(135deg,#6366f1,#7c3aed 60%,#14b8a6); box-shadow:0 8px 22px rgba(99,102,241,.38);}
+  .stat-card{background:var(--bg-2); border-radius:20px; position:relative; overflow:hidden;}
+  .stat-card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px; background:linear-gradient(90deg,#6366f1,#14b8a6);}
+  .stat-card:hover{transform:translateY(-5px); box-shadow:0 18px 40px rgba(99,102,241,.22);}
+  .stat-card .value{background:linear-gradient(135deg,var(--text-hi),#818cf8); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .panel{border-radius:20px; backdrop-filter:blur(18px); box-shadow:0 8px 30px rgba(0,0,0,.12);}
+  .btn{border-radius:12px;}
+  .btn-primary{background:linear-gradient(135deg,#6366f1,#7c3aed 55%,#14b8a6); background-size:180%; transition:background-position .4s, transform .15s, box-shadow .2s;}
+  .btn-primary:hover{background-position:100% 0; transform:translateY(-2px); box-shadow:0 10px 26px rgba(99,102,241,.45);}
+  .form-row input,.form-row select{border-radius:12px;} .form-row input:focus,.form-row select:focus{border-color:#6366f1; box-shadow:0 0 0 4px rgba(99,102,241,.18);}
+  .theme-option{border-radius:18px; background:var(--bg-2);} .theme-option.selected{border-color:#6366f1; box-shadow:0 0 0 4px rgba(99,102,241,.2);}
+  h1.page-title{background:linear-gradient(135deg,var(--text-hi),#818cf8); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .main{position:relative;}
+  /* generating overlay (loader by Nawsome via Uiverse) */
+  .gen-overlay{position:fixed; inset:0; z-index:500; display:none; place-items:center; background:rgba(8,9,24,.65); backdrop-filter:blur(8px);}
+  .gen-overlay.show{display:grid; animation:fadeIn .25s ease;}
+  .gen-card{background:#fff; color:#15162e; border-radius:24px; padding:36px 44px; text-align:center; max-width:380px; box-shadow:0 30px 80px rgba(0,0,0,.4);}
+  .gen-card h3{margin:22px 0 6px; font-size:18px;} .gen-card p{font-size:13px; color:#5a5f86;}
+  .loader{display:flex; align-items:center; justify-content:center; flex-direction:row;}
+  .slider{overflow:hidden; background-color:white; margin:0 15px; height:80px; width:20px; border-radius:30px; box-shadow:15px 15px 20px rgba(0,0,0,.1), -15px -15px 30px #fff, inset -5px -5px 10px rgba(0,0,255,.1), inset 5px 5px 10px rgba(0,0,0,.1); position:relative;}
+  .slider::before{content:""; position:absolute; top:0; left:0; height:20px; width:20px; border-radius:100%; box-shadow:inset 0 0 0 rgba(0,0,0,.3), 0 420px 0 400px #2697f3, inset 0 0 0 rgba(0,0,0,.1); animation:animate_2 2.5s ease-in-out infinite; animation-delay:calc(-.5s * var(--i));}
+  @keyframes animate_2{0%{transform:translateY(250px); filter:hue-rotate(0deg);} 50%{transform:translateY(0);} 100%{transform:translateY(250px); filter:hue-rotate(180deg);}}
+  @media(prefers-reduced-motion:reduce){.bg-fx i{animation:none;}}
 </style>
 </head>
 <body data-theme="dark">
 
+  <div class="bg-fx"><i class="b1"></i><i class="b2"></i><i class="b3"></i><div class="bg-grid"></div></div>
   <div class="titlebar">
-    <div class="traffic-lights"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
-    <div class="app-name">digital-twin — dashboard</div>
-    <div class="theme-toggle">
-      <button id="darkBtn" class="active" onclick="setTheme('dark')">Dark</button>
-      <button id="lightBtn" onclick="setTheme('light')">Light</button>
+    <div class="tb-left"><img class="logo-sm" src="{{ url_for('static', filename='logo.svg') }}" alt=""><span class="tb-title">Digital Twin</span></div>
+    <div class="tb-right">
+      <div class="theme-toggle">
+        <button id="darkBtn" class="active" onclick="setTheme('dark')">Dark</button>
+        <button id="lightBtn" onclick="setTheme('light')">Light</button>
+      </div>
+      <div class="user-menu" id="userMenu">
+        <button class="avatar" id="avatarBtn" onclick="toggleUserMenu(event)" title="Account">{{ (user_email[:1] if user_email else 'U')|upper }}</button>
+        <div class="user-pop" id="userPop">
+          <div class="up-head"><div class="up-av">{{ (user_email[:1] if user_email else 'U')|upper }}</div><div><div class="up-name">{{ shop.name if shop and shop.name else 'My Shop' }}</div><div class="up-mail">{{ user_email or 'Signed in' }}</div></div></div>
+          <button class="up-item" onclick="showPage('shop', document.querySelector('[data-page=shop]')); toggleUserMenu(event)">⚙️ Shop settings</button>
+          <button class="up-item danger" onclick="logout()">🚪 Sign out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gen-overlay" id="genOverlay">
+    <div class="gen-card">
+      <section class="loader">
+        <div class="slider" style="--i:0"></div><div class="slider" style="--i:1"></div><div class="slider" style="--i:2"></div><div class="slider" style="--i:3"></div><div class="slider" style="--i:4"></div>
+      </section>
+      <h3>Building your website…</h3>
+      <p>Generating pages and publishing to Cloudflare. This can take a minute or two.</p>
     </div>
   </div>
 
   <div class="layout">
     <div class="sidebar">
-      <div class="brand">Digital Twin</div>
+      <div style="height:6px"></div>
       <div class="nav-item active" data-page="overview" onclick="showPage('overview', this)"><span class="icon">📊</span> Overview</div>
       <div class="nav-item" data-page="shop" onclick="showPage('shop', this)"><span class="icon">🏬</span> Shop Info</div>
       <div class="nav-item" data-page="products" onclick="showPage('products', this)"><span class="icon">📦</span> Products</div>
@@ -766,10 +841,30 @@
     }
   }
 
+
+  function toggleUserMenu(e){ e.stopPropagation(); document.getElementById('userPop').classList.toggle('open'); }
+  document.addEventListener('click', e => { const p=document.getElementById('userPop'); if(p && !e.target.closest('#userMenu')) p.classList.remove('open'); });
+  async function logout(){
+    try { await fetch('/api/auth/logout', {method:'POST'}); } catch(e){}
+    const PK = "{{ clerk_pk }}";
+    if (PK) {
+      try {
+        const host = atob(PK.split('_')[2]).slice(0,-1);
+        await new Promise((ok,bad)=>{ const s=document.createElement('script'); s.async=true; s.crossOrigin='anonymous';
+          s.setAttribute('data-clerk-publishable-key', PK);
+          s.src='https://'+host+'/npm/@clerk/clerk-js@5/dist/clerk.browser.js'; s.onload=ok; s.onerror=bad; document.head.appendChild(s); });
+        await window.Clerk.load();
+        await window.Clerk.signOut();
+      } catch(e){}
+    }
+    location.href = '/sign-in?force=1';
+  }
+
   async function regenerateSite(){
     const btn = document.getElementById('regenerateBtn');
     btn.disabled = true;
     btn.innerText = 'Generating...';
+    document.getElementById('genOverlay').classList.add('show');
 
     try {
       const res = await fetch('/api/generate-site', {method: 'POST'});
@@ -793,6 +888,7 @@
     } catch(e) {
       alert('Backend not reachable — is the Flask server running?');
     } finally {
+      document.getElementById('genOverlay').classList.remove('show');
       btn.disabled = false;
       btn.innerText = 'Regenerate Site';
     }

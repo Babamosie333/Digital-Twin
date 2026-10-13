@@ -1,13 +1,26 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Signing in…</title></head><body style="font-family:sans-serif;text-align:center;padding:60px">
-<p id="m">Signing you in…</p>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signing in…</title><link rel="icon" href="/static/favicon.svg">
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,#312e81,#0a0b1c 70%);font-family:Inter,'Segoe UI',sans-serif;color:#fff;text-align:center}
+.stage{position:relative;width:200px;height:170px;margin:0 auto 90px}.stage .Strich1{left:35px;top:60px}
+p{opacity:.85;margin:0}a{color:#a5b4fc}
+@keyframes dropAndShift{0%{transform:translate(0px,15px)}16.67%{transform:translate(80px,13px)}33.34%{transform:translate(40px,10px)}50.01%{transform:translate(40px,-30px)}66.68%{transform:translate(40px,55px)}83.35%{transform:translate(40px,10px)}100%{transform:translate(0px,15px)}}
+.Strich1{position:absolute;width:130px;height:50px;background:#000;border-radius:25px;transform:rotate(45deg);box-shadow:0 4px 10px rgba(0,0,0,.4);z-index:0}
+.Strich2{position:absolute;width:130px;height:50px;background:#000;border-radius:25px;transform:rotate(-90deg);box-shadow:0 4px 10px rgba(0,0,0,.4);z-index:0}
+.bubble,.bubble1,.bubble2,.bubble3{position:absolute;top:0;width:20px;height:20px;border-radius:50%}
+.bubble{left:15px;background:radial-gradient(circle at 30% 30%,#ffb3c1,#e64980,#ff8787);animation:dropAndShift 5s ease-in-out infinite;z-index:1}
+.bubble1{left:8px;background:radial-gradient(circle at 30% 30%,#edb3ff,#ac49e6,#fb87ff);animation:dropAndShift 6s ease-in-out infinite;z-index:2}
+.bubble2{left:12px;background:radial-gradient(circle at 30% 30%,#b3d8ff,#4963e6,#87a7ff);animation:dropAndShift 4s ease-in-out infinite;z-index:3}
+.bubble3{left:10px;background:radial-gradient(circle at 30% 30%,#b3ffbc,#35a32f,#75ba61);animation:dropAndShift 7s ease-in-out infinite;z-index:4}
+</style></head><body><div>
+<div class="stage"><div class="Strich1"><div class="Strich2"><div class="bubble"></div><div class="bubble1"></div><div class="bubble2"></div><div class="bubble3"></div></div></div></div>
+<p id="m">Signing you in…</p></div>
 <script>
 const PK="{{ clerk_pk }}";const host=atob(PK.split("_")[2]).slice(0,-1);
 const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.setAttribute("data-clerk-publishable-key",PK);
 s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
-s.onload=async()=>{try{const C=window.Clerk;await C.load();
- await C.handleRedirectCallback({signInFallbackRedirectUrl:"/sso-callback",signUpFallbackRedirectUrl:"/sso-callback"});
-}catch(e){}
- const C=window.Clerk;if(C&&C.user){const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
+s.onload=async()=>{const C=window.Clerk;try{await C.load();
+ await C.handleRedirectCallback({signInFallbackRedirectUrl:"/sso-callback",signUpFallbackRedirectUrl:"/sso-callback"});}catch(e){}
+ if(C&&C.user){const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
   await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:C.user.id,email})});location.href="/dashboard";}
  else document.getElementById("m").innerHTML='Sign-in failed. <a href="/sign-in">Try again</a>';};
 document.head.appendChild(s);
