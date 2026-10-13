@@ -102,21 +102,20 @@
   .theme-option:hover{transform:translateY(-2px);}
   .theme-option.selected{border-color:#4f5fe0;}
   .theme-swatch{height:130px; border-radius:9px; margin-bottom:10px; overflow:hidden; position:relative; border:1px solid var(--glass-border);}
-  .theme-preview-video{width:100%; height:100%; object-fit:cover;}
   .mockup-scroll{position:absolute; top:0; left:0; width:100%; animation:mockupScroll 6s ease-in-out infinite;}
   @keyframes mockupScroll{0%,15%{transform:translateY(0);} 45%,60%{transform:translateY(-45%);} 85%,100%{transform:translateY(0);}}
   .mockup-bar{height:14px; display:flex; align-items:center; gap:3px; padding:0 8px;}
   .mockup-bar span{width:5px; height:5px; border-radius:50%;}
   .mockup-block{margin:6px 8px; border-radius:4px;}
-  .swatch-rival .mockup-scroll{background:#F4F3EE;}
-  .swatch-rival .mockup-bar{background:#F4F3EE;} .swatch-rival .mockup-bar span{background:#2A46E8;}
-  .swatch-rival .mockup-block{background:linear-gradient(135deg,#2A46E8,#0E0F12);}
-  .swatch-nami .mockup-scroll{background:#FAF9F5;}
-  .swatch-nami .mockup-bar{background:#FAF9F5;} .swatch-nami .mockup-bar span{background:#3A5A72;}
-  .swatch-nami .mockup-block{background:linear-gradient(135deg,#3A5A72,#1E1D1B);}
-  .swatch-fernweg .mockup-scroll{background:#EFE9DA;}
-  .swatch-fernweg .mockup-bar{background:#EFE9DA;} .swatch-fernweg .mockup-bar span{background:#8A3B2B;}
-  .swatch-fernweg .mockup-block{background:linear-gradient(135deg,#8A3B2B,#141C17);}
+  .swatch-aurora .mockup-scroll{background:#faf9ff;}
+  .swatch-aurora .mockup-bar{background:#faf9ff;} .swatch-aurora .mockup-bar span{background:#3f36c4;}
+  .swatch-aurora .mockup-block{background:linear-gradient(135deg,#3f36c4,#ff6b52);}
+  .swatch-glass .mockup-scroll{background:#161618;}
+  .swatch-glass .mockup-bar{background:#161618;} .swatch-glass .mockup-bar span{background:#c9a24b;}
+  .swatch-glass .mockup-block{background:linear-gradient(135deg,#2a2a2d,#c9a24b);}
+  .swatch-hearth .mockup-scroll{background:#f6ede0;}
+  .swatch-hearth .mockup-bar{background:#f6ede0;} .swatch-hearth .mockup-bar span{background:#f2994a;}
+  .swatch-hearth .mockup-block{background:linear-gradient(135deg,#fff6ec,#f2994a);}
   .theme-option .name{font-size:13px; font-weight:700;}
   .theme-option .desc{font-size:11px; color:var(--text-mid); margin-top:2px;}
 
@@ -317,32 +316,50 @@
         <p class="page-sub">Choose how your generated website looks.</p>
 
         <div class="theme-options">
-          <div class="theme-option selected" onclick="selectTheme(this, 'rival_shop')">
-            <div class="theme-swatch">
-              <video autoplay loop muted playsinline class="theme-preview-video">
-                <source src="{{ url_for('static', filename='theme-previews/rival_shop.mp4') }}" type="video/mp4">
-              </video>
+          <div class="theme-option selected" onclick="selectTheme(this, 'aurora_storefront')">
+            <div class="theme-swatch swatch-aurora">
+              <div class="mockup-scroll">
+                <div class="mockup-bar"><span></span><span></span><span></span></div>
+                <div class="mockup-block" style="height:40px;"></div>
+                <div class="mockup-block" style="height:16px; width:60%;"></div>
+                <div class="mockup-block" style="height:16px; width:40%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+                <div class="mockup-block" style="height:16px; width:70%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+              </div>
             </div>
-            <div class="name">Rival</div>
-            <div class="desc">Bold indigo, full storefront with cart & WhatsApp checkout</div>
+            <div class="name">Aurora Storefront</div>
+            <div class="desc">Indigo + coral, bold multi-page store with cart</div>
           </div>
-          <div class="theme-option" onclick="selectTheme(this, 'nami_shop')">
-            <div class="theme-swatch">
-              <video autoplay loop muted playsinline class="theme-preview-video">
-                <source src="{{ url_for('static', filename='theme-previews/nami_shop.mp4') }}" type="video/mp4">
-              </video>
+          <div class="theme-option" onclick="selectTheme(this, 'glass_boutique')">
+            <div class="theme-swatch swatch-glass">
+              <div class="mockup-scroll">
+                <div class="mockup-bar"><span></span><span></span><span></span></div>
+                <div class="mockup-block" style="height:40px;"></div>
+                <div class="mockup-block" style="height:16px; width:60%;"></div>
+                <div class="mockup-block" style="height:16px; width:40%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+                <div class="mockup-block" style="height:16px; width:70%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+              </div>
             </div>
-            <div class="name">Nami</div>
-            <div class="desc">Calm slate blue, minimal paper-goods aesthetic</div>
+            <div class="name">Glass Boutique</div>
+            <div class="desc">Gold + emerald, elegant glass surfaces, serif headings</div>
           </div>
-          <div class="theme-option" onclick="selectTheme(this, 'fernweg_shop')">
-            <div class="theme-swatch">
-              <video autoplay loop muted playsinline class="theme-preview-video">
-                <source src="{{ url_for('static', filename='theme-previews/fernweg_shop.mp4') }}" type="video/mp4">
-              </video>
+          <div class="theme-option" onclick="selectTheme(this, 'warm_hearth')">
+            <div class="theme-swatch swatch-hearth">
+              <div class="mockup-scroll">
+                <div class="mockup-bar"><span></span><span></span><span></span></div>
+                <div class="mockup-block" style="height:40px;"></div>
+                <div class="mockup-block" style="height:16px; width:60%;"></div>
+                <div class="mockup-block" style="height:16px; width:40%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+                <div class="mockup-block" style="height:16px; width:70%;"></div>
+                <div class="mockup-block" style="height:50px;"></div>
+              </div>
             </div>
-            <div class="name">Fernweg</div>
-            <div class="desc">Earthy rust + cream, warm travel-goods feel</div>
+            <div class="name">Warm Hearth</div>
+            <div class="desc">Terracotta + sun orange, cozy rounded shapes</div>
           </div>
         </div>
 
@@ -508,7 +525,6 @@
     const name = document.getElementById('newProdName').value;
     const price = document.getElementById('newProdPrice').value;
     const category = document.getElementById('newProdCategory').value;
-    const description = document.getElementById('newProdDescription').value;
     const photoInput = document.getElementById('newProdPhoto');
 
     if(!name || !price){ alert('Name and price required.'); return; }
@@ -530,7 +546,7 @@
     try {
       const res = await fetch('/api/product', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({name, price, category, description, photo_url: photoUrl, photos})
+        body: JSON.stringify({name, price, category, photo_url: photoUrl, photos})
       });
       const data = await res.json();
       if(!res.ok){ alert(data.error || 'Could not add product.'); return; }
@@ -773,14 +789,23 @@
 
     try {
       const res = await fetch('/api/generate-site', {method: 'POST'});
-      const data = await res.json();
-
-      if (res.ok) {
-        document.getElementById('liveSiteUrl').innerText = data.live_url;
-        alert('Site generated! Live at:\n' + data.live_url);
-      } else {
-        alert('Could not generate site: ' + (data.error || 'Unknown error. Make sure Shop Info is saved first.'));
+      const first = await res.json();
+      if (!res.ok && res.status !== 202) {
+        alert('Could not generate site: ' + (first.error || 'Make sure Shop Info is saved first.'));
+        return;
       }
+      for (let i = 0; i < 120; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        let st;
+        try { st = await (await fetch('/api/generate-site/status')).json(); } catch(e) { continue; }
+        if (st.state === 'done') {
+          document.getElementById('liveSiteUrl').innerText = st.live_url;
+          alert('Site generated! Live at:\n' + st.live_url + '\n\nHard-refresh (Ctrl+Shift+R) if you still see the old theme.');
+          return;
+        }
+        if (st.state === 'error') { alert('Generation failed: ' + st.error); return; }
+      }
+      alert('Still deploying after 6 minutes — check the Render logs for [deploy_to_cloudflare].');
     } catch(e) {
       alert('Backend not reachable — is the Flask server running?');
     } finally {

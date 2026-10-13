@@ -1,3 +1,4 @@
+import threading
 """
 Digital Business Twin Generator - Web Backend
 Flask + MongoDB (PyMongo) + Clerk (headless auth)
@@ -645,6 +646,9 @@ def upload_photo():
     return jsonify({"status": "ok", "photo_url": photo_url, "storage": "local"})
 
 
+GEN_JOBS = {}
+
+
 @app.route("/api/generate-site", methods=["POST"])
 def generate_and_deploy_site():
     """
@@ -655,8 +659,6 @@ def generate_and_deploy_site():
     if not user_id:
         return jsonify({"error": "unauthorized"}), 401
 
-    from site_generator import generate_site, deploy_to_cloudflare
-
     shop = shops_col.find_one({"owner_id": user_id})
     if not shop:
         return jsonify({"error": "no shop found — save business info first"}), 400
@@ -664,16 +666,36 @@ def generate_and_deploy_site():
     products = list(products_col.find({"shop_id": str(shop["_id"])}).sort("order", 1))
     shop["_id"] = str(shop["_id"])  # make JSON/template safe
 
-    site_path = generate_site(shop, products, backend_url=BACKEND_PUBLIC_URL)
-    live_url = deploy_to_cloudflare(shop["subdomain"], os.path.dirname(site_path))
+    job = GEN_JOBS.get(user_id)
+    if job and job.get("state") == "running":
+        return jsonify({"status": "running"}), 202
 
-    site_configs_col.update_one(
-        {"shop_id": shop["_id"]},
-        {"$set": {"shop_id": shop["_id"], "live_url": live_url, "last_deployed": datetime.utcnow()}},
-        upsert=True
-    )
+    GEN_JOBS[user_id] = {"state": "running", "started": datetime.utcnow().isoformat()}
 
-    return jsonify({"status": "ok", "live_url": live_url})
+    def _run():
+        from site_generator import generate_site, deploy_to_cloudflare
+        try:
+            site_path = generate_site(shop, products, backend_url=BACKEND_PUBLIC_URL)
+            live_url = deploy_to_cloudflare(shop["subdomain"], os.path.dirname(site_path))
+            site_configs_col.update_one(
+                {"shop_id": shop["_id"]},
+                {"$set": {"shop_id": shop["_id"], "live_url": live_url, "last_deployed": datetime.utcnow()}},
+                upsert=True)
+            GEN_JOBS[user_id] = {"state": "done", "live_url": live_url}
+        except Exception as e:
+            print(f"[generate-site] failed: {e}")
+            GEN_JOBS[user_id] = {"state": "error", "error": str(e)}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "running"}), 202
+
+
+@app.route("/api/generate-site/status", methods=["GET"])
+def generate_site_status():
+    user_id = ensure_session()
+    if not user_id:
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(GEN_JOBS.get(user_id, {"state": "idle"}))
 
 
 # ---------------- Order Inbox ----------------
