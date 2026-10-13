@@ -18,10 +18,25 @@ p{opacity:.85;margin:0}a{color:#a5b4fc}
 const PK="{{ clerk_pk }}";const host=atob(PK.split("_")[2]).slice(0,-1);
 const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.setAttribute("data-clerk-publishable-key",PK);
 s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
-s.onload=async()=>{const C=window.Clerk;try{await C.load({signInUrl:location.origin+'/sign-in',signUpUrl:location.origin+'/sign-up',signInFallbackRedirectUrl:'/sso-callback',signUpFallbackRedirectUrl:'/sso-callback'});
- await C.handleRedirectCallback({signInFallbackRedirectUrl:"/sso-callback",signUpFallbackRedirectUrl:"/sso-callback"});}catch(e){}
- if(C&&C.user){const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
-  await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:C.user.id,email})});location.href="/dashboard";}
- else document.getElementById("m").innerHTML='Sign-in failed. <a href="/sign-in">Try again</a>';};
+s.onload=async()=>{
+ const O=location.origin;
+ const C=window.Clerk;
+ const fail=t=>document.getElementById("m").innerHTML=t+' <a href="/sign-in?force=1">Back to sign in</a>';
+ try{
+  await C.load({signInUrl:O+"/sign-in",signUpUrl:O+"/sign-up"});
+  if(!C.user){
+   await C.handleRedirectCallback({
+    signInUrl:O+"/sign-in?force=1",signUpUrl:O+"/sign-up",
+    firstFactorUrl:O+"/sign-in?force=1",secondFactorUrl:O+"/sign-in?force=1",
+    continueSignUpUrl:O+"/sign-up",verifyEmailAddressUrl:O+"/sign-up",
+    signInForceRedirectUrl:O+"/sso-callback",signUpForceRedirectUrl:O+"/sso-callback",
+    signInFallbackRedirectUrl:O+"/sso-callback",signUpFallbackRedirectUrl:O+"/sso-callback"});
+   return; // Clerk navigates (back here with a session)
+  }
+  const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
+  await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:C.user.id,email})});
+  location.href="/dashboard";
+ }catch(e){fail("Sign-in failed ("+((e&&e.message)||"unknown")+").");}
+};
 document.head.appendChild(s);
 </script></body></html>
