@@ -339,6 +339,12 @@ def sign_up_page():
     return render_template("auth/sign_up.html", clerk_pk=CLERK_PUBLISHABLE_KEY, theme=theme)
 
 
+@app.route("/sso-callback")
+def sso_callback():
+    """Landing page after Google OAuth: finishes the Clerk session, syncs with backend."""
+    return render_template("auth/sso_callback.html", clerk_pk=CLERK_PUBLISHABLE_KEY)
+
+
 @app.route("/api/auth/session", methods=["POST"])
 def create_session():
     """Called by frontend JS after Clerk confirms sign-in, to sync our own user record."""

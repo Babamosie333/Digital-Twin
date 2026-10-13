@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Signing in…</title></head><body style="font-family:sans-serif;text-align:center;padding:60px">
+<p id="m">Signing you in…</p>
+<script>
+const PK="{{ clerk_pk }}";const host=atob(PK.split("_")[2]).slice(0,-1);
+const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.setAttribute("data-clerk-publishable-key",PK);
+s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
+s.onload=async()=>{try{const C=window.Clerk;await C.load();
+ await C.handleRedirectCallback({signInFallbackRedirectUrl:"/sso-callback",signUpFallbackRedirectUrl:"/sso-callback"});
+}catch(e){}
+ const C=window.Clerk;if(C&&C.user){const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
+  await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:C.user.id,email})});location.href="/dashboard";}
+ else document.getElementById("m").innerHTML='Sign-in failed. <a href="/sign-in">Try again</a>';};
+document.head.appendChild(s);
+</script></body></html>

@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign up</title><style>
+:root{--bg:#f5f6ff;--card:#fff;--t:#1b1d3a;--m:#6b6f93;--a:#4f46e5;--b:rgba(27,29,58,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1020;--card:#191a33;--t:#f1f2ff;--m:#a0a4cc;--b:rgba(255,255,255,.12)}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--t);font-family:Inter,'Segoe UI',sans-serif;padding:16px}
+.c{width:100%;max-width:400px;background:var(--card);border:1px solid var(--b);border-radius:20px;padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+h1{margin:0 0 4px;font-size:1.5rem}p.s{margin:0 0 20px;color:var(--m);font-size:.9rem}
+input{width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--b);border-radius:12px;background:transparent;color:var(--t);font-size:1rem}
+button{width:100%;padding:12px;border:0;border-radius:12px;background:var(--a);color:#fff;font-size:1rem;font-weight:600;cursor:pointer}
+button.g{background:transparent;color:var(--t);border:1px solid var(--b);margin-bottom:14px}
+.e{color:#e5484d;font-size:.85rem;min-height:1.2em;margin:6px 0}.f{text-align:center;margin-top:16px;font-size:.9rem;color:var(--m)}a{color:var(--a)}
+</style></head><body><div class="c">
+<h1>Create account</h1><p class="s">Set up your shop's digital twin</p>
+<div id="s1"><button class="g" id="g">Continue with Google</button>
+<input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Password (8+ characters)" autocomplete="new-password">
+<div id="captcha"></div><button id="go">Sign up</button></div>
+<div id="s2" style="display:none"><p class="s">Enter the code we emailed you</p><input id="code" inputmode="numeric" placeholder="Verification code"><button id="vf">Verify</button></div>
+<div class="e" id="err"></div><div class="f" id="dev" style="display:none"><a href="/dashboard">Continue in dev mode</a></div>
+<div class="f">Have an account? <a href="/sign-in">Sign in</a></div></div><script>
+const PK="{{ clerk_pk }}";
+const $=id=>document.getElementById(id);
+const err=m=>$("err").textContent=m||"";
+async function loadClerk(){
+  if(!PK){err("Clerk is not configured on this server.");$("dev").style.display="block";return null;}
+  const host=atob(PK.split("_")[2]).slice(0,-1);
+  await new Promise((ok,bad)=>{const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";
+    s.setAttribute("data-clerk-publishable-key",PK);
+    s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";s.onload=ok;s.onerror=()=>bad(new Error("Could not load Clerk"));document.head.appendChild(s);});
+  await window.Clerk.load();return window.Clerk;
+}
+async function finish(clerk,sessionId){
+  await clerk.setActive({session:sessionId});
+  const u=clerk.user,email=u.primaryEmailAddress?u.primaryEmailAddress.emailAddress:"";
+  await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:u.id,email})});
+  location.href="/dashboard";
+}
+function msg(e){return (e.errors&&e.errors[0]&&(e.errors[0].longMessage||e.errors[0].message))||e.message||"Something went wrong";}
+async function google(clerk,mode){
+  try{const r=location.origin+"/sso-callback";
+    const f=mode==="up"?clerk.client.signUp:clerk.client.signIn;
+    await f.authenticateWithRedirect({strategy:"oauth_google",redirectUrl:r,redirectUrlComplete:r});}catch(e){err(msg(e));}
+}
+</script>
+<script>
+let C=null;loadClerk().then(c=>C=c).catch(e=>err(e.message));
+$("go").onclick=async()=>{err("");if(!C)return err("Clerk not ready");
+ try{await C.client.signUp.create({emailAddress:$("em").value.trim(),password:$("pw").value});
+  await C.client.signUp.prepareEmailAddressVerification({strategy:"email_code"});
+  $("s1").style.display="none";$("s2").style.display="block";}catch(e){err(msg(e));}};
+$("vf").onclick=async()=>{err("");
+ try{const r=await C.client.signUp.attemptEmailAddressVerification({code:$("code").value.trim()});
+  if(r.status==="complete")await finish(C,r.createdSessionId);else err("Not complete: "+r.status);}catch(e){err(msg(e));}};
+$("g").onclick=()=>C?google(C,"up"):err("Clerk not ready");
+</script></body></html>
