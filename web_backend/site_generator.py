@@ -78,6 +78,16 @@ def generate_site(shop: dict, products: list, backend_url: str = "http://127.0.0
     return index_output_path
 
 
+def _wrangler_cmd():
+    """Use a global wrangler if present, else npx (works on Render, which has Node but no global wrangler)."""
+    import shutil
+    if shutil.which("wrangler"):
+        return ["wrangler"]
+    if shutil.which("npx"):
+        return ["npx", "--yes", "wrangler@3"]
+    return ["wrangler"]
+
+
 def deploy_to_cloudflare(subdomain: str, site_dir: str) -> str:
     """
     Publishes the generated static site to Cloudflare Pages using the `wrangler` CLI.
@@ -110,8 +120,8 @@ def deploy_to_cloudflare(subdomain: str, site_dir: str) -> str:
 
     try:
         result = subprocess.run(
-            ["wrangler", "pages", "deploy", site_dir, "--project-name", project, "--branch", subdomain],
-            capture_output=True, text=True, timeout=120,
+            _wrangler_cmd() + ["pages", "deploy", site_dir, "--project-name", project, "--branch", subdomain],
+            capture_output=True, text=True, timeout=300,
             stdin=subprocess.DEVNULL
         )
         print(f"[deploy_to_cloudflare] wrangler stdout:\n{result.stdout}")
@@ -123,7 +133,7 @@ def deploy_to_cloudflare(subdomain: str, site_dir: str) -> str:
                 live_url = match.group(0)
             print(f"[deploy_to_cloudflare] Deployed successfully: {live_url}")
     except subprocess.TimeoutExpired:
-        print("[deploy_to_cloudflare] wrangler deploy timed out after 120s")
+        print("[deploy_to_cloudflare] wrangler deploy timed out after 300s")
     except FileNotFoundError:
         print("[deploy_to_cloudflare] 'wrangler' command not found — is it installed and on PATH? Try: npm install -g wrangler")
     except Exception as e:
