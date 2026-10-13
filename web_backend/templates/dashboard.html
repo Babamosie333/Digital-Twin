@@ -101,6 +101,7 @@
   .theme-option{border:2px solid var(--glass-border); border-radius:14px; padding:14px; cursor:pointer; transition:border 150ms ease, transform 150ms ease;}
   .theme-option:hover{transform:translateY(-2px);}
   .theme-option.selected{border-color:#4f5fe0;}
+  .theme-preview-video{width:100%; height:100%; object-fit:cover;}
   .theme-swatch{height:130px; border-radius:9px; margin-bottom:10px; overflow:hidden; position:relative; border:1px solid var(--glass-border);}
   .mockup-scroll{position:absolute; top:0; left:0; width:100%; animation:mockupScroll 6s ease-in-out infinite;}
   @keyframes mockupScroll{0%,15%{transform:translateY(0);} 45%,60%{transform:translateY(-45%);} 85%,100%{transform:translateY(0);}}
@@ -315,51 +316,34 @@
         <h1 class="page-title">Website Theme</h1>
         <p class="page-sub">Choose how your generated website looks.</p>
 
+        {% set cur_theme = (shop.theme if shop and shop.theme in ['rival_shop','nami_shop','fernweg_shop'] else 'rival_shop') %}
         <div class="theme-options">
-          <div class="theme-option selected" onclick="selectTheme(this, 'aurora_storefront')">
-            <div class="theme-swatch swatch-aurora">
-              <div class="mockup-scroll">
-                <div class="mockup-bar"><span></span><span></span><span></span></div>
-                <div class="mockup-block" style="height:40px;"></div>
-                <div class="mockup-block" style="height:16px; width:60%;"></div>
-                <div class="mockup-block" style="height:16px; width:40%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-                <div class="mockup-block" style="height:16px; width:70%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-              </div>
+          <div class="theme-option{{ ' selected' if cur_theme == 'rival_shop' else '' }}" data-theme="rival_shop" onclick="selectTheme(this, 'rival_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/rival_shop.mp4') }}" type="video/mp4">
+              </video>
             </div>
-            <div class="name">Aurora Storefront</div>
-            <div class="desc">Indigo + coral, bold multi-page store with cart</div>
+            <div class="name">Rival</div>
+            <div class="desc">Bold indigo, full storefront with cart &amp; WhatsApp checkout</div>
           </div>
-          <div class="theme-option" onclick="selectTheme(this, 'glass_boutique')">
-            <div class="theme-swatch swatch-glass">
-              <div class="mockup-scroll">
-                <div class="mockup-bar"><span></span><span></span><span></span></div>
-                <div class="mockup-block" style="height:40px;"></div>
-                <div class="mockup-block" style="height:16px; width:60%;"></div>
-                <div class="mockup-block" style="height:16px; width:40%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-                <div class="mockup-block" style="height:16px; width:70%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-              </div>
+          <div class="theme-option{{ ' selected' if cur_theme == 'nami_shop' else '' }}" data-theme="nami_shop" onclick="selectTheme(this, 'nami_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/nami_shop.mp4') }}" type="video/mp4">
+              </video>
             </div>
-            <div class="name">Glass Boutique</div>
-            <div class="desc">Gold + emerald, elegant glass surfaces, serif headings</div>
+            <div class="name">Nami</div>
+            <div class="desc">Calm slate blue, minimal paper-goods aesthetic</div>
           </div>
-          <div class="theme-option" onclick="selectTheme(this, 'warm_hearth')">
-            <div class="theme-swatch swatch-hearth">
-              <div class="mockup-scroll">
-                <div class="mockup-bar"><span></span><span></span><span></span></div>
-                <div class="mockup-block" style="height:40px;"></div>
-                <div class="mockup-block" style="height:16px; width:60%;"></div>
-                <div class="mockup-block" style="height:16px; width:40%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-                <div class="mockup-block" style="height:16px; width:70%;"></div>
-                <div class="mockup-block" style="height:50px;"></div>
-              </div>
+          <div class="theme-option{{ ' selected' if cur_theme == 'fernweg_shop' else '' }}" data-theme="fernweg_shop" onclick="selectTheme(this, 'fernweg_shop')">
+            <div class="theme-swatch">
+              <video autoplay loop muted playsinline class="theme-preview-video">
+                <source src="{{ url_for('static', filename='theme-previews/fernweg_shop.mp4') }}" type="video/mp4">
+              </video>
             </div>
-            <div class="name">Warm Hearth</div>
-            <div class="desc">Terracotta + sun orange, cozy rounded shapes</div>
+            <div class="name">Fernweg</div>
+            <div class="desc">Earthy rust + cream, warm travel-goods feel</div>
           </div>
         </div>
 
@@ -765,7 +749,7 @@
 
   async function applyTheme(){
     const selected = document.querySelector('.theme-option.selected');
-    const themeKey = selected.dataset.theme || 'macos';
+    const themeKey = (selected && selected.dataset.theme) || 'rival_shop';
 
     try {
       const res = await fetch('/api/shop', {
