@@ -18,7 +18,7 @@ p{opacity:.85;margin:0}a{color:#a5b4fc}
 const PK="{{ clerk_pk }}";const host=atob(PK.split("_")[2]).slice(0,-1);
 const s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.setAttribute("data-clerk-publishable-key",PK);
 s.src="https://"+host+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
-s.onload=async()=>{const C=window.Clerk;try{await C.load();
+s.onload=async()=>{const C=window.Clerk;try{await C.load({signInUrl:location.origin+'/sign-in',signUpUrl:location.origin+'/sign-up',signInFallbackRedirectUrl:'/sso-callback',signUpFallbackRedirectUrl:'/sso-callback'});
  await C.handleRedirectCallback({signInFallbackRedirectUrl:"/sso-callback",signUpFallbackRedirectUrl:"/sso-callback"});}catch(e){}
  if(C&&C.user){const email=C.user.primaryEmailAddress?C.user.primaryEmailAddress.emailAddress:"";
   await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clerk_user_id:C.user.id,email})});location.href="/dashboard";}

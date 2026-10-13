@@ -854,7 +854,7 @@
           s.setAttribute('data-clerk-publishable-key', PK);
           s.src='https://'+host+'/npm/@clerk/clerk-js@5/dist/clerk.browser.js'; s.onload=ok; s.onerror=bad; document.head.appendChild(s); });
         await window.Clerk.load();
-        await window.Clerk.signOut();
+        await window.Clerk.signOut({redirectUrl: '/sign-in?force=1'});
       } catch(e){}
     }
     location.href = '/sign-in?force=1';
