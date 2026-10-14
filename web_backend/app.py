@@ -309,6 +309,18 @@ DEV_USER_ID = "dev-local-user"
 def ensure_session():
     """Returns a valid user_id for the current request — real session if signed in,
     or a dev fallback user if DEV_MODE is on and no session exists yet."""
+    # Desktop app login: it sends a shared secret + the owner's email, so it edits the
+    # SAME shop as the web dashboard. Enabled only when DESKTOP_API_KEY is set on the server.
+    desk_key = os.environ.get("DESKTOP_API_KEY", "")
+    if desk_key and request.headers.get("X-API-Key") == desk_key:
+        email = (request.headers.get("X-User-Email") or "").strip()
+        if email:
+            try:
+                u = users_col.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+                if u:
+                    return str(u["_id"])
+            except Exception:
+                pass
     if "user_id" in session:
         return session["user_id"]
     if DEV_MODE:

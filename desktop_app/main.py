@@ -3,17 +3,68 @@ Digital Business Twin Generator - Desktop Input App
 PyQt5, macOS-inspired dark/light theme, live preview panel
 """
 import sys
+import os
+import json
+import math
+import time
 import requests
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTextEdit, QListWidget, QListWidgetItem,
     QFileDialog, QFormLayout, QTabWidget, QScrollArea, QFrame, QMessageBox,
-    QComboBox, QInputDialog
+    QComboBox, QInputDialog, QDialog
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF, QByteArray
+from PyQt5.QtGui import QFont, QPainter, QColor, QPixmap, QPainterPath, QLinearGradient, QBrush
+try:
+    from PyQt5.QtSvg import QSvgRenderer
+except Exception:  # QtSvg missing -> logo just won't draw
+    QSvgRenderer = None
 
-API_BASE = "http://127.0.0.1:5000/api"
+# ---------------- Connection settings ----------------
+# Saved in ~/.digitaltwin_desktop.json (edit via the "Connection" button) or env vars.
+CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".digitaltwin_desktop.json")
+DEFAULT_SERVER = "https://digital-twin-t4gf.onrender.com"
+
+
+def load_config():
+    cfg = {"server": DEFAULT_SERVER, "api_key": "", "email": ""}
+    try:
+        with open(CONFIG_PATH) as f:
+            cfg.update(json.load(f))
+    except Exception:
+        pass
+    cfg["server"] = os.environ.get("DT_BACKEND_URL", cfg["server"])
+    cfg["api_key"] = os.environ.get("DT_API_KEY", cfg["api_key"])
+    cfg["email"] = os.environ.get("DT_USER_EMAIL", cfg["email"])
+    return cfg
+
+
+CONFIG = load_config()
+API_BASE = CONFIG["server"].rstrip("/") + "/api"
+
+
+def auth_headers():
+    h = {}
+    if CONFIG.get("api_key") and CONFIG.get("email"):
+        h["X-API-Key"] = CONFIG["api_key"]
+        h["X-User-Email"] = CONFIG["email"]
+    return h
+
+
+LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><g opacity=".35" transform="translate(6 -5)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"><path d="M14 26h32v22H14z"/><path d="M12 26l4-9h28l4 9"/></g><path d="M12 28h32v22a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2z" fill="#fff" fill-opacity=".9"/><path d="M10 28l4.5-10h27L46 28a5 5 0 0 1-9.3 0 5 5 0 0 1-9.4 0 5 5 0 0 1-9.4 0A5 5 0 0 1 10 28z" fill="#fff"/><rect x="24" y="37" width="9" height="15" rx="2" fill="#6366f1"/><circle cx="49" cy="46" r="7" fill="#fff"/><path d="M45.5 46l2.5 2.5 4.5-5" fill="none" stroke="#14b8a6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
+
+
+def logo_pixmap(size):
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    if QSvgRenderer is not None:
+        r = QSvgRenderer(QByteArray(LOGO_SVG.encode()))
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
+        r.render(p)
+        p.end()
+    return pm
 
 
 class ApiWorker(QThread):
@@ -25,7 +76,7 @@ class ApiWorker(QThread):
     """
     finished = pyqtSignal(bool, str, dict)  # success, message, response_json
 
-    def __init__(self, method, url, json_data=None, files=None, timeout=15):
+    def __init__(self, method, url, json_data=None, files=None, timeout=45):
         super().__init__()
         self.method = method
         self.url = url
@@ -35,16 +86,17 @@ class ApiWorker(QThread):
 
     def run(self):
         try:
+            hdr = auth_headers()
             if self.method == "POST":
-                resp = requests.post(self.url, json=self.json_data, files=self.files, timeout=self.timeout)
+                resp = requests.post(self.url, json=self.json_data, files=self.files, timeout=self.timeout, headers=hdr)
             elif self.method == "PUT":
-                resp = requests.put(self.url, json=self.json_data, timeout=self.timeout)
+                resp = requests.put(self.url, json=self.json_data, timeout=self.timeout, headers=hdr)
             elif self.method == "DELETE":
-                resp = requests.delete(self.url, timeout=self.timeout)
+                resp = requests.delete(self.url, timeout=self.timeout, headers=hdr)
             else:
-                resp = requests.get(self.url, timeout=self.timeout)
+                resp = requests.get(self.url, timeout=self.timeout, headers=hdr)
 
-            if resp.status_code == 200:
+            if resp.status_code in (200, 202):
                 self.finished.emit(True, "ok", resp.json())
             else:
                 try:
@@ -54,69 +106,161 @@ class ApiWorker(QThread):
                 self.finished.emit(False, err, {})
 
         except requests.exceptions.ConnectionError:
-            self.finished.emit(False, "Can't reach the backend server. Is 'python app.py' running?", {})
+            self.finished.emit(False, "Can't reach the backend server. Check the Connection settings (server URL) and your internet.", {})
         except requests.exceptions.ReadTimeout:
             self.finished.emit(False, "Server took too long to respond (check your MongoDB connection/Atlas IP whitelist).", {})
         except Exception as e:
             self.finished.emit(False, f"Unexpected error: {e}", {})
 
 DARK_QSS = """
-QMainWindow, QWidget { background-color: #1c1e26; color: #f2f3f5; font-family: -apple-system, 'Segoe UI', sans-serif; }
-QLineEdit, QTextEdit {
-    background-color: rgba(255,255,255,0.055); border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 7px; padding: 8px; color: #f2f3f5;
+QMainWindow, QWidget { background-color: #0b0c1e; color: #f3f4ff; font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif; }
+QLineEdit, QTextEdit, QComboBox {
+    background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 9px; color: #f3f4ff;
 }
-QLineEdit:focus, QTextEdit:focus { border: 1px solid #4f5fe0; }
+QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border: 1px solid #6366f1; }
+QComboBox QAbstractItemView { background: #161834; color: #f3f4ff; selection-background-color: #6366f1; }
 QPushButton {
-    background-color: #4f5fe0; color: white; border: none; border-radius: 7px;
-    padding: 10px 16px; font-weight: 600;
+    background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #6366f1, stop:0.55 #7c3aed, stop:1 #14b8a6);
+    color: white; border: none; border-radius: 10px; padding: 10px 18px; font-weight: 700;
 }
-QPushButton:hover { background-color: #3e4dc9; }
-QPushButton:pressed { background-color: #3646b8; }
+QPushButton:hover { background-color: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7578ff, stop:0.55 #8b4dfb, stop:1 #2dd4bf); }
+QPushButton:pressed { background-color: #4f46e5; }
+QPushButton:disabled { background-color: #2a2c52; color: #8a8fb3; }
 QPushButton#secondary {
-    background-color: rgba(255,255,255,0.055); color: #f2f3f5; border: 1px solid rgba(255,255,255,0.10);
+    background-color: rgba(255,255,255,0.06); color: #f3f4ff; border: 1px solid rgba(255,255,255,0.14);
 }
-QLabel#heading { font-size: 20px; font-weight: 700; }
-QLabel#muted { color: #a7abb6; font-size: 12px; }
-QListWidget { background-color: #242730; border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; }
-QTabWidget::pane { border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; }
-QTabBar::tab { background: #242730; padding: 8px 16px; border-top-left-radius: 7px; border-top-right-radius: 7px; }
-QTabBar::tab:selected { background: #4f5fe0; color: white; }
+QPushButton#secondary:hover { background-color: rgba(255,255,255,0.12); }
+QLabel#heading { font-size: 20px; font-weight: 800; }
+QLabel#muted { color: #aab0d8; font-size: 12px; }
+QListWidget { background-color: #12142b; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; }
+QTabWidget::pane { border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; }
+QTabBar::tab { background: #12142b; padding: 9px 18px; border-top-left-radius: 10px; border-top-right-radius: 10px; margin-right: 3px; }
+QTabBar::tab:selected { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #6366f1, stop:1 #7c3aed); color: white; }
+QScrollArea { border: none; }
 """
 
-LIGHT_QSS = DARK_QSS.replace("#1c1e26", "#fbfbfc").replace("#f2f3f5", "#1b1d23") \
-    .replace("rgba(255,255,255,0.055)", "rgba(20,22,30,0.035)") \
-    .replace("rgba(255,255,255,0.10)", "rgba(20,22,30,0.09)") \
-    .replace("#242730", "#f2f3f5").replace("#a7abb6", "#5c6069")
+LIGHT_QSS = DARK_QSS.replace("#0b0c1e", "#f2f3ff").replace("#f3f4ff", "#15162e") \
+    .replace("rgba(255,255,255,0.06)", "rgba(79,70,229,0.05)") \
+    .replace("rgba(255,255,255,0.12)", "rgba(40,40,100,0.14)") \
+    .replace("rgba(255,255,255,0.14)", "rgba(40,40,100,0.16)") \
+    .replace("#12142b", "#ffffff").replace("#161834", "#ffffff").replace("#aab0d8", "#5a5f86")
+
+
+class SliderLoader(QWidget):
+    """Five liquid-filling sliders (port of the Uiverse 'Nawsome' loader)."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(5 * 20 + 4 * 30, 84)
+        self.t0 = time.time()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update)
+        self.timer.start(33)
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        now = time.time() - self.t0
+        for i in range(5):
+            x = i * 50
+            rect = QRectF(x, 2, 20, 80)
+            path = QPainterPath()
+            path.addRoundedRect(rect, 10, 10)
+            g = QLinearGradient(x, 0, x + 20, 0)
+            g.setColorAt(0, QColor("#e4e6f7")); g.setColorAt(0.5, QColor("#ffffff")); g.setColorAt(1, QColor("#dfe2f5"))
+            p.fillPath(path, QBrush(g))
+            ph = ((now - 0.5 * i) % 2.5) / 2.5
+            e = 0.5 - 0.5 * math.cos(2 * math.pi * ph)
+            ty = 250 * (1 - e)
+            if ty < 82:
+                col = QColor.fromHsv(int((205 + 180 * ph) % 360), 190, 243)
+                p.save(); p.setClipPath(path)
+                p.setBrush(col); p.setPen(Qt.NoPen)
+                p.drawEllipse(QRectF(x, 2 + ty, 20, 20))
+                p.drawRect(QRectF(x, 2 + ty + 10, 20, 90))
+                p.restore()
+
+
+class GeneratingOverlay(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        self.card = QWidget(self)
+        self.card.setStyleSheet("background:#ffffff; border-radius:22px;")
+        self.card.setFixedSize(380, 250)
+        lay = QVBoxLayout(self.card)
+        lay.setContentsMargins(24, 28, 24, 20)
+        self.loader = SliderLoader()
+        lay.addWidget(self.loader, 0, Qt.AlignHCenter)
+        self.title = QLabel("Building your website…")
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setStyleSheet("color:#15162e; font-size:17px; font-weight:800; background:transparent;")
+        self.sub = QLabel("Generating pages and publishing.\nThe first deploy can take a minute or two.")
+        self.sub.setAlignment(Qt.AlignCenter)
+        self.sub.setStyleSheet("color:#5a5f86; font-size:12px; background:transparent;")
+        lay.addWidget(self.title); lay.addWidget(self.sub)
+        self.hide()
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor(8, 9, 24, 170))
+
+    def relayout(self):
+        self.setGeometry(self.parent().rect())
+        self.card.move((self.width() - self.card.width()) // 2, (self.height() - self.card.height()) // 2)
+
+
+class ConnectionDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Connection settings")
+        self.setMinimumWidth(480)
+        form = QFormLayout(self)
+        self.server = QLineEdit(CONFIG["server"])
+        self.email = QLineEdit(CONFIG["email"])
+        self.email.setPlaceholderText("the email you sign in with on the website")
+        self.key = QLineEdit(CONFIG["api_key"])
+        self.key.setEchoMode(QLineEdit.Password)
+        self.key.setPlaceholderText("DESKTOP_API_KEY from your Render environment")
+        form.addRow("Server URL", self.server)
+        form.addRow("Account email", self.email)
+        form.addRow("Desktop API key", self.key)
+        hint = QLabel("Use the same email as your web login so both apps edit the same shop.")
+        hint.setObjectName("muted"); hint.setWordWrap(True)
+        form.addRow(hint)
+        save = QPushButton("Save"); save.clicked.connect(self.accept)
+        form.addRow(save)
+
+    def values(self):
+        return {"server": self.server.text().strip().rstrip("/"), "email": self.email.text().strip(), "api_key": self.key.text().strip()}
 
 
 class TrafficLightBar(QWidget):
-    def __init__(self, title, on_theme_toggle):
+    def __init__(self, title, on_theme_toggle, on_connection):
         super().__init__()
         layout = QHBoxLayout()
-        layout.setContentsMargins(12, 8, 12, 8)
-
-        dots = QHBoxLayout()
-        dots.setSpacing(8)
-        for color in ["#ff453a", "#ffb224", "#12a594"]:
-            dot = QLabel()
-            dot.setFixedSize(12, 12)
-            dot.setStyleSheet(f"background-color:{color}; border-radius:6px;")
-            dots.addWidget(dot)
-        layout.addLayout(dots)
-
+        layout.setContentsMargins(16, 10, 16, 10)
+        logo = QLabel()
+        logo.setPixmap(logo_pixmap(30))
+        logo.setFixedSize(30, 30)
+        layout.addWidget(logo)
+        name = QLabel("Digital Twin")
+        name.setStyleSheet("font-size:16px; font-weight:800;")
+        layout.addWidget(name)
         layout.addStretch()
         title_label = QLabel(title)
-        title_label.setStyleSheet("font-family:'SF Mono', monospace; font-size:12px; color:#71757f;")
+        title_label.setObjectName("muted")
         layout.addWidget(title_label)
         layout.addStretch()
 
+        conn_btn = QPushButton("⚙ Connection")
+        conn_btn.setObjectName("secondary")
+        conn_btn.clicked.connect(on_connection)
+        layout.addWidget(conn_btn)
         toggle_btn = QPushButton("Toggle Theme")
         toggle_btn.setObjectName("secondary")
-        toggle_btn.setFixedWidth(120)
         toggle_btn.clicked.connect(on_theme_toggle)
         layout.addWidget(toggle_btn)
-
         self.setLayout(layout)
 
 
@@ -200,7 +344,7 @@ class BusinessInfoTab(QWidget):
         self.save_btn_ref.setEnabled(False)
         self.save_btn_ref.setText("Saving...")
 
-        self.worker = ApiWorker("POST", f"{API_BASE}/shop", json_data=self.get_data(), timeout=15)
+        self.worker = ApiWorker("POST", f"{API_BASE}/shop", json_data=self.get_data(), timeout=45)
         self.worker.finished.connect(self.on_save_finished)
         self.worker.start()
 
@@ -293,7 +437,7 @@ class ProductsTab(QWidget):
 
         import io
         files = {"photo": (local_path.split("/")[-1], io.BytesIO(file_bytes))}
-        self.photo_worker = ApiWorker("POST", f"{API_BASE}/upload-photo", files=files, timeout=15)
+        self.photo_worker = ApiWorker("POST", f"{API_BASE}/upload-photo", files=files, timeout=45)
 
         def on_uploaded(success, message, data):
             photo_url = data.get("photo_url", "") if success else ""
@@ -310,7 +454,7 @@ class ProductsTab(QWidget):
                 "description": description, "photo_url": photo_url,
                 "photos": [photo_url] if photo_url else []
             },
-            timeout=15
+            timeout=45
         )
 
         def on_saved(success, message, data):
@@ -372,7 +516,7 @@ class ProductsTab(QWidget):
         self.edit_worker = ApiWorker(
             "PUT", f"{API_BASE}/product/{product['id']}",
             json_data={"name": new_name, "price": new_price, "category": new_category},
-            timeout=15
+            timeout=45
         )
 
         def on_updated(success, message, data):
@@ -396,7 +540,7 @@ class ProductsTab(QWidget):
         if confirm != QMessageBox.Yes:
             return
 
-        self.delete_worker = ApiWorker("DELETE", f"{API_BASE}/product/{product['id']}", timeout=15)
+        self.delete_worker = ApiWorker("DELETE", f"{API_BASE}/product/{product['id']}", timeout=45)
 
         def on_deleted(success, message, data):
             if not success:
@@ -464,7 +608,7 @@ class MainWindow(QMainWindow):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
-        self.titlebar = TrafficLightBar("digital-twin — desktop", self.toggle_theme)
+        self.titlebar = TrafficLightBar("desktop · " + CONFIG["server"].replace("https://", ""), self.toggle_theme, self.open_connection)
         outer_layout.addWidget(self.titlebar)
 
         body = QHBoxLayout()
@@ -493,7 +637,7 @@ class MainWindow(QMainWindow):
         # Bottom action bar
         action_bar = QHBoxLayout()
         action_bar.setContentsMargins(16, 0, 16, 16)
-        generate_btn = QPushButton("Generate & Deploy Website")
+        generate_btn = QPushButton("Generate && Deploy Website")
         generate_btn.clicked.connect(self.generate_site)
         self.generate_btn_ref = generate_btn
         action_bar.addStretch()
@@ -503,14 +647,34 @@ class MainWindow(QMainWindow):
         central.setLayout(outer_layout)
         self.setCentralWidget(central)
 
+        self.overlay = GeneratingOverlay(central)
         self.apply_theme()
         self.load_existing_shop()
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        if hasattr(self, "overlay"):
+            self.overlay.relayout()
+
+    def open_connection(self):
+        global API_BASE
+        dlg = ConnectionDialog(self)
+        if dlg.exec_():
+            v = dlg.values()
+            CONFIG.update(v)
+            API_BASE = CONFIG["server"].rstrip("/") + "/api"
+            try:
+                with open(CONFIG_PATH, "w") as f:
+                    json.dump(v, f)
+            except Exception:
+                pass
+            QMessageBox.information(self, "Saved", "Connection saved. Restart the app to reload your shop data.")
 
     def load_existing_shop(self):
         """Pulls any previously saved shop + products from the backend on startup,
         so the desktop app isn't always blank if you already saved data via
         the web dashboard (or a previous desktop session)."""
-        self.load_worker = ApiWorker("GET", f"{API_BASE}/shop", timeout=15)
+        self.load_worker = ApiWorker("GET", f"{API_BASE}/shop", timeout=45)
 
         def on_loaded(success, message, data):
             if not success:
@@ -545,28 +709,61 @@ class MainWindow(QMainWindow):
             return
 
         self.generate_btn_ref.setEnabled(False)
-        self.generate_btn_ref.setText("Generating & Deploying... (can take up to a minute)")
+        self.generate_btn_ref.setText("Generating…")
+        self.overlay.relayout(); self.overlay.show(); self.overlay.raise_()
+        self.poll_count = 0
 
-        # Longer timeout: a real Cloudflare Pages deploy can genuinely take 30-60+ seconds.
-        self.generate_worker = ApiWorker("POST", f"{API_BASE}/generate-site", timeout=90)
-
-        def on_done(success, message, resp_data):
+        def finish():
+            self.overlay.hide()
             self.generate_btn_ref.setEnabled(True)
-            self.generate_btn_ref.setText("Generate & Deploy Website")
-            if success:
-                live_url = resp_data.get("live_url", "")
-                if "PLACEHOLDER" in live_url:
-                    QMessageBox.warning(
-                        self, "Generated (not deployed)",
-                        f"Site generated, but Cloudflare isn't configured yet:\n{live_url}\n\n"
-                        "Add CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_PROJECT to .env to go live."
-                    )
-                else:
-                    QMessageBox.information(self, "Site Live!", f"Your site is live at:\n{live_url}")
-            else:
-                QMessageBox.warning(self, "Generation Failed", message)
+            self.generate_btn_ref.setText("Generate && Deploy Website")
 
-        self.generate_worker.finished.connect(on_done)
+        def show_result(live_url):
+            finish()
+            if "PLACEHOLDER" in live_url:
+                QMessageBox.warning(
+                    self, "Generated (not deployed)",
+                    f"Site generated, but Cloudflare isn't configured yet:\n{live_url}\n\n"
+                    "Add CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_PROJECT to the server's environment to go live."
+                )
+            else:
+                QMessageBox.information(self, "Site Live!", f"Your site is live at:\n{live_url}")
+
+        def poll():
+            self.poll_count += 1
+            if self.poll_count > 120:
+                finish()
+                QMessageBox.warning(self, "Still working", "The deploy is taking longer than expected. Check the server logs.")
+                return
+            self.status_worker = ApiWorker("GET", f"{API_BASE}/generate-site/status", timeout=45)
+
+            def on_status(ok, msg, st):
+                if not ok:
+                    QTimer.singleShot(3000, poll)  # transient network error: keep trying
+                    return
+                state = st.get("state")
+                if state == "done":
+                    show_result(st.get("live_url", ""))
+                elif state == "error":
+                    finish()
+                    QMessageBox.warning(self, "Generation Failed", st.get("error", "Unknown error"))
+                else:
+                    QTimer.singleShot(3000, poll)
+
+            self.status_worker.finished.connect(on_status)
+            self.status_worker.start()
+
+        # The server now builds in the background and returns right away (HTTP 202).
+        self.generate_worker = ApiWorker("POST", f"{API_BASE}/generate-site", timeout=60)
+
+        def on_started(success, message, resp_data):
+            if not success:
+                finish()
+                QMessageBox.warning(self, "Generation Failed", message)
+                return
+            QTimer.singleShot(3000, poll)
+
+        self.generate_worker.finished.connect(on_started)
         self.generate_worker.start()
 
 
