@@ -1,0 +1,49 @@
+name: Build desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r desktop_app/requirements-desktop.txt
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd desktop_app
+          pyinstaller --noconfirm --onefile --windowed --name "DigitalTwin" --icon assets/icon.ico main.py
+          mkdir -p ../out && cp dist/DigitalTwin.exe ../out/DigitalTwin-Setup.exe
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd desktop_app
+          pyinstaller --noconfirm --windowed --name "Digital Twin" --icon assets/icon.icns --osx-bundle-identifier com.babamosie.digitaltwin main.py
+          mkdir -p ../out dmgroot
+          cp -R "dist/Digital Twin.app" dmgroot/
+          ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "Digital Twin" -srcfolder dmgroot -ov -format UDZO ../out/DigitalTwin.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DigitalTwin-${{ runner.os }}
+          path: out/*
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
