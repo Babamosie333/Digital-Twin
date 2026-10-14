@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QComboBox, QInputDialog, QDialog
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF, QByteArray
-from PyQt5.QtGui import QFont, QPainter, QColor, QPixmap, QPainterPath, QLinearGradient, QBrush
+from PyQt5.QtGui import QIcon, QFont, QPainter, QColor, QPixmap, QPainterPath, QLinearGradient, QBrush
 try:
     from PyQt5.QtSvg import QSvgRenderer
 except Exception:  # QtSvg missing -> logo just won't draw
@@ -769,6 +769,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(logo_pixmap(256)))
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
