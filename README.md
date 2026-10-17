@@ -7,7 +7,7 @@ and a shareable WhatsApp catalog — no coding required.
 ---
 
 ## What it does
-
+ 
 1. **Desktop app** (PyQt5) — the shop owner fills in business info and adds
    products with photos and descriptions, with a live preview as they type.
 2. **Web dashboard** — the same data can be managed from a browser, with
