@@ -454,7 +454,8 @@ def get_shop():
         for p in products:
             p["_id"] = str(p["_id"])
 
-        return jsonify({"shop": shop, "products": products})
+        cfg = site_configs_col.find_one({"shop_id": shop["_id"]}) or {}
+        return jsonify({"shop": shop, "products": products, "live_url": cfg.get("live_url", "")})
     except Exception as e:
         return jsonify({"error": f"Database connection failed: {str(e)}"}), 503
 
