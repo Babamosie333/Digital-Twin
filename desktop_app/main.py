@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF, QByteArray, QBuffer, QUrl
-from PyQt5.QtGui import QFont, QPainter, QColor, QPixmap, QPainterPath, QLinearGradient, QBrush
+from PyQt5.QtGui import QFont, QPainter, QColor, QPixmap, QPainterPath, QLinearGradient, QBrush, QIcon, QImage, QDesktopServices
 try:
     from PyQt5.QtSvg import QSvgRenderer
 except Exception:  # QtSvg missing -> logo just won't draw
